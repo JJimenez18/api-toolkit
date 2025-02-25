@@ -1,0 +1,63 @@
+{
+  "name": "@chtalent/api-toolkit",
+  "version": "1.0.1",
+  "description": "Dependencia comun para servicios apificados construidos con express",
+  "keywords": [],
+  "author": {
+    "name": "JJimenez",
+    "email": "1074316@onuriscp.com.mx"
+  },
+  "license": "ISC",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "files": [
+    "build/**/*"
+  ],
+  "scripts": {
+    "eslint": "eslint . --ext .js,.ts",
+    "clean": "del ./build",
+    "test": "jest --runInBand --detectOpenHandles",
+    "build": "tsc",
+    "start": "npm run build && node -r dotenv/config build/index.js",
+    "pub": "npm version patch && npm run build && npm publish",
+    "git:pub": "git add . && git commit -m \"Updates\" && npm version patch && npm run build && npm publish",
+    "com": "npm run build && git add . && git commit -m \"Updates\"",
+    "com:pub:beta": "npm run com && npm version patch && npm publish"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.24.0",
+    "@babel/preset-typescript": "^7.23.3",
+    "@types/express": "^4.17.17",
+    "@types/jest": "^29.5.1",
+    "@types/jsonwebtoken": "^9.0.2",
+    "@types/node-telegram-bot-api": "^0.64.7",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^5.59.6",
+    "@typescript-eslint/parser": "^5.59.6",
+    "babel-jest": "^29.7.0",
+    "del-cli": "^5.0.0",
+    "dotenv": "^16.0.3",
+    "eslint": "^8.40.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.27.5",
+    "express": "^4.18.2",
+    "express-validator": "^7.0.1",
+    "jest": "^29.5.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "@chtalent/api-toolkit": "file:",
+    "axios": "0.21.1",
+    "express-async-errors": "^3.1.1",
+    "fast-safe-stringify": "^2.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "logform": "^2.5.1",
+    "node-telegram-bot-api": "^0.63.0",
+    "ping-tcp-js": "2.0.4",
+    "s3-streamlogger": "1.7.0",
+    "telnet-client": "1.4.11",
+    "uuid": "^9.0.1",
+    "winston": "^3.8.2"
+  }
+}
