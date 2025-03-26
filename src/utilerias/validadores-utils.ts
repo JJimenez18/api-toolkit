@@ -56,9 +56,22 @@ export const calculaTiempo = (
         tiempo: data[2],
     };
     detalleServicio.tiempo = calcularTiempoEjecucion({inicio: data[2], final: performance.now()});
-    const nivelLog = tipolog as LoggerLevelsEnum;
     const detServicio = inDetServicio ? [detalleServicio].concat(inDetServicio) : [detalleServicio];
-    logger[nivelLog](mensaje, detServicio);
+    switch (tipolog) {
+        case LoggerLevelsEnum.ERROR:
+            logger.error(mensaje, detServicio);
+            break;
+        case LoggerLevelsEnum.WARN:
+            logger.warn(mensaje, detServicio);
+            break;
+        case LoggerLevelsEnum.INFO:
+            logger.info(mensaje, detServicio);
+            break;
+        // case LoggerLevelsEnum.DEBUG:
+        default:
+            logger.debug(mensaje, detServicio);
+            break;
+    }
     return [detalleServicio];
 };
 
