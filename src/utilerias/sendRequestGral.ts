@@ -1,7 +1,15 @@
 import axios, {AxiosRequestConfig} from 'axios';
 import {SistemasEnum, EMensajesError} from '../enum/enums';
 import {IDetalleServicio} from '../models/model';
-import {iniciaTiempo, calculaTiempo, LoggerLevelsEnum} from './validadores-utils';
+import {iniciaTiempo, calculaTiempo} from './validadores-utils';
+
+enum LoggerLevelsEnum {
+    ERROR = 'error',
+    WARN = 'warn',
+    INFO = 'info',
+    VERBOSE = 'verbose',
+    DEBUG = 'debug',
+  }
 
 interface ISendRequest<T> {
     codigoHttp: number;

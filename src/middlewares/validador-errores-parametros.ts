@@ -17,7 +17,7 @@ const obtenerCadenaAntesDelUltimoPunto = (str: string): string => {
     return lastIndex !== -1 ? str.substring(0, lastIndex) : str;
 };
 
-export const convertidor = (err: any[]): {mensajesError: string[]; codigoError: number} => {
+const convertidor = (err: any[]): {mensajesError: string[]; codigoError: number} => {
     const mensajesError: string[] = [];
     let codigoError = 4000;
     err.forEach((element) => {
