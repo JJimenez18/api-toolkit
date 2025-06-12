@@ -504,8 +504,8 @@ export const validacionCadenaNumeros = (
           .matches(/^\d+$/)
           .withMessage(campoCadenaNumerica(campo))
           .bail()
-          .isLength({ min: 5, max: 15 })
-          .withMessage(campoLongitud(campo, 5, 15))
+          .isLength({ min: 3, max: 15 })
+          .withMessage(campoLongitud(campo, 3, 15))
           .bail(),
       ]
     : [
