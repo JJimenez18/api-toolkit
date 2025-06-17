@@ -215,7 +215,7 @@ export const validaXIdAcceso = async (
   const value = solicitud.headers["x-id-acceso"]
     ? solicitud.headers["x-id-acceso"].toString()
     : "";
-  if (!/^[0-9]{10,13}$/.test(value)) {
+  if (!/^[0-9]{10,20}$/.test(value)) {
     throw errorApi.peticionNoAutorizada.faltanParametros(
       EMensajesError.NOT_AUTH,
       4100
