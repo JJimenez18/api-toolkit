@@ -1,6 +1,6 @@
 {
   "name": "@chtalent/api-toolkit",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "Dependencia comun para servicios apificados construidos con express",
   "keywords": [],
   "author": {
