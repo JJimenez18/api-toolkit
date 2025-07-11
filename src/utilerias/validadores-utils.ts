@@ -490,7 +490,9 @@ export const validacionCadena = (
 
 export const validacionCadenaNumeros = (
   campo: string,
-  esOpcional = false
+  esOpcional = false,
+  min = 3,
+  max = 15,
 ): Array<ValidationChain> => {
   const cadena = body(campo);
   return esOpcional
@@ -504,8 +506,8 @@ export const validacionCadenaNumeros = (
           .matches(/^\d+$/)
           .withMessage(campoCadenaNumerica(campo))
           .bail()
-          .isLength({ min: 3, max: 15 })
-          .withMessage(campoLongitud(campo, 3, 15))
+          .isLength({ min, max })
+          .withMessage(campoLongitud(campo, min, max))
           .bail(),
       ]
     : [
@@ -517,8 +519,8 @@ export const validacionCadenaNumeros = (
           .matches(/^\d+$/)
           .withMessage(campoCadenaNumerica(campo))
           .bail()
-          .isLength({ min: 5, max: 15 })
-          .withMessage(campoLongitud(campo, 5, 15))
+          .isLength({ min, max })
+          .withMessage(campoLongitud(campo, min, max))
           .bail(),
       ];
 };
