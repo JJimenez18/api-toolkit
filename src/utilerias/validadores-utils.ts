@@ -3,6 +3,7 @@ import {
   body,
   CustomValidator,
   header,
+  Meta,
   ValidationChain,
 } from "express-validator";
 import { errorApi, exitoApi } from "../respuestas";
@@ -641,5 +642,170 @@ export const descifrarCampos = ({
     aplicarDescifrado(obj, ruta.split("."), accesoPrivado, rsaOAEP);
   }
 };
+
+export const validaCadenaNoCifradaV2 = (
+    field: string,
+    options?: { optional?: boolean, max?: number; min?: number },
+): ValidationChain => {
+    const max = options?.max;
+    const min = options?.min || 1;
+    const optional = options?.optional || false;
+    let chain = body(field);
+    chain = optional ? chain.optional() : chain;
+    chain = chain
+        .isString()
+        .withMessage(campoEsCadena(field))
+        .trim()
+        .notEmpty()
+        .withMessage(campoRequerido(field))
+        .bail()
+        .not()
+        .matches(/^(?:[A-Za-z0-9+/]{4})*[A-Za-z0-9+/]{3}=$/)
+        .withMessage(`${field}: cadena no cumple el formato`);
+
+    if (options?.min || options?.max) {
+        chain = chain
+            .isLength({
+                min: min,
+                max: max,
+            })
+            .withMessage(`${field} debe tener entre ${min} y ${max ?? '∞'} caracteres`);
+    }
+    return chain;
+};
+
+export const validaCadenaCifradaV2 = (field: string, options?: { optional?: boolean }): ValidationChain => {
+    let chain = options?.optional
+        ? body(field).optional()
+        : body(field).notEmpty().withMessage(campoRequerido(field)).bail();
+    chain = chain
+        .isString()
+        .withMessage(campoEsCadena(field))
+        .bail()
+        .isBase64()
+        .withMessage(campoEsBase64(field))
+        .bail()
+        .custom(isValidEncryptedString);
+    return chain;
+};
+
+export const validaCadenaNumerosV2 = (field: string, options?: { optional?: boolean, min?: number, max?: number }): ValidationChain => {
+    let chain = validaCadenaNoCifradaV2(field, options)
+        .matches(/^\d+$/)
+        .withMessage(`El campo ${field} debe ser un número decimal válido.`);
+    return chain;
+}
+
+export const validaCadenaNumerosFloat = (field: string, options?: { optional?: boolean, min?: number, max?: number }): ValidationChain => {
+    let chain = validaCadenaNoCifradaV2(field, options)
+        .matches(/^\d*\.\d+$|^\d+$/)
+        .withMessage(`El campo ${field} debe ser un número decimal válido.`);
+    return chain;
+}
+
+export const validaCadenaNoCifradaSiObjetoExiste = (
+    object: string,
+    field: string,
+): ValidationChain => {
+    const fullPath = `${object}.${field}`;
+    return body(fullPath)
+        .if(body(object).exists())
+        .isString()
+        .withMessage(campoEsCadena(fullPath))
+        .trim()
+        .notEmpty()
+        .withMessage(campoRequerido(fullPath))
+        .bail()
+        .bail()
+        .not()
+        .matches(/^(?:[A-Za-z0-9+/]{4})*[A-Za-z0-9+/]{3}=$/)
+        .withMessage(`${fullPath}: cadena no cumple el formato`);
+};
+
+export const validaCadenaNoCifradaSiArrayExiste = (
+    array: string,
+    field: string,
+): ValidationChain => {
+    const fullPath = `${array}.*.${field}`;
+    return body(fullPath)
+        .if(body(array).exists())
+        .isString()
+        .withMessage(campoEsCadena(fullPath))
+        .trim()
+        .notEmpty()
+        .bail()
+        .withMessage(campoRequerido(fullPath))
+        .bail()
+        .not()
+        .matches(/^(?:[A-Za-z0-9+/]{4})*[A-Za-z0-9+/]{3}=$/)
+        .withMessage(`${fullPath}: cadena no cumple el formato`);
+};
+
+export const validaCadenaCifradaSiArrayExiste = (
+    array: string,
+    field: string,
+): ValidationChain => {
+    const fullPath = `${array}.*.${field}`;
+    return body(fullPath)
+        .if(body(array).exists())
+        .isString()
+        .withMessage(campoEsCadena(fullPath))
+        .bail()
+        .isBase64()
+        .withMessage(campoEsBase64(fullPath))
+        .bail()
+        .custom(isValidEncryptedString);
+};
+
+/**
+ * Verifica que una fecha exista en realidad. Ejemplo 2024/01/10 -> true / 2025/02/55 -> false
+ *
+ * @param dateString - Fecha formato YYYY/MM/DD
+ * @returns Boolean correspondiente a si es correcto
+ */
+export const isValidDate = (dateString: string): boolean => {
+    const [day, month, year] = dateString.split('/').map(num => parseInt(num, 10));
+    const date = new Date(year, month - 1, day);
+    return date.getDate() === day && date.getMonth() === month - 1 && date.getFullYear() === year;
+}
+
+export const descifrarCampo = (field: string): ValidationChain => {
+    return body(field)
+        .customSanitizer((value: any, meta: Meta) => {
+            if (value) {
+                const privateAccess = meta.req.accesoPrivado;
+                const idAcceso = Number(meta.req.headers!['x-id-acceso']) || 0;
+
+                const decifrado = Cifrado.getInstance().descifrarRSAOAEP(
+                    `${value}`.trim(),
+                    privateAccess || '',
+                );
+
+                if (decifrado.error) {
+                    LoggerS3.getInstance().getLogger().info(
+                        `Problemas al decifrar el atributo ${field} con el idAcceso ${idAcceso}`
+                    );
+                    throw errorApi.peticionNoAutorizada.peticionNoAutorizada(
+                        EMensajesError.KEY_ERROR,
+                        4109
+                    );
+                }
+                return decifrado.valor;
+            }
+            return value;
+        });
+}
+
+/**
+ * Descifra los campos de un request
+ *
+ * @param campos - Lista con el nombre de los campos a descifrar con la sintaxis de express-validator
+ * @returns Array para modificar el request como middleware
+ */
+export const descifrarDatos = (campos: Array<string>): Array<ValidationChain> => {
+        return campos.map((value) => {
+            return descifrarCampo(value);
+        });
+}
 
 export * from ".";
