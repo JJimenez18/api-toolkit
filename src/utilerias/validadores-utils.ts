@@ -518,10 +518,9 @@ export const validacionCadenaNumeros = (
 
   return esOpcional
     ? [
-        cadena
-          .optional()
-          .customSanitizer(() => null)
-          .bail(),
+        cadena.optional(),
+        // .customSanitizer(() => null)
+        // .bail(),
         reglaBase,
       ]
     : [reglaBase];
@@ -1201,6 +1200,105 @@ export const validarNumeroEnteroMiddleware = (
       throw errorApi.peticionNoValida.parametrosNoValidos(err.message);
     }
   };
+};
+
+export enum EOpEncrypt {
+  CIFRADO = 1,
+  DECIFRADO = 0,
+}
+
+/**
+ * Aplica operaciones de cifrado o descifrado RSA a los campos especificados de un objeto.
+ *
+ * Esta función recorre el objeto `obj` siguiendo las rutas definidas en `campos`.
+ * Cada ruta puede ser:
+ *  - Una propiedad simple: "campo"
+ *  - Propiedades anidadas: "objeto.subobjeto.campo"
+ *  - Arreglos usando "[]": "detalle[].precio" recorrerá cada elemento del arreglo `detalle`
+ *
+ * Dependiendo de `operacion`, se puede cifrar o descifrar el campo:
+ *  - operacion = true: cifrar usando RSA
+ *  - operacion = false: descifrar usando RSA
+ *
+ * Si `oaep` es true, se utiliza OAEP; si es false, se usa PKCS#1.
+ *
+ * @param obj Objeto en el que se aplicará la operación
+ * @param campos Arreglo de rutas a los campos que serán cifrados/descifrados
+ * @param llave Llave RSA para la operación
+ * @param oaep Booleano que indica si se utiliza OAEP
+ * @param operacion Indica si se aplica cifrado (true) o descifrado (false)
+ * @returns El mismo objeto `obj` con los campos modificados
+ *
+ * @example
+ * const obj = { detalle: [{ precio: "123" }, { precio: "456" }] };
+ * operacionesEncryptRSA(obj, ["detalle[].precio"], llave, true, true);
+ * Ahora obj.detalle[0].precio y obj.detalle[1].precio están cifrados
+ */
+export const operacionesEncryptRSA = (
+  obj: any,
+  campos: string[],
+  llave: string,
+  oaep: boolean,
+  operacion: EOpEncrypt
+): any => {
+  for (const campo of campos) {
+    decifraCampo(obj, campo.split("."), llave, oaep, operacion);
+  }
+  return obj;
+};
+
+const decifraCampo = (
+  obj: any,
+  ruta: string[],
+  llave: string,
+  oaep: boolean,
+  operacion: EOpEncrypt
+): void => {
+  if (!obj || ruta.length === 0) return;
+
+  const parte = ruta[0];
+  const resto = ruta.slice(1);
+
+  // Caso arreglo con [*]
+  if (parte.endsWith("[]")) {
+    const key = parte.replace("[]", "");
+    const arr = obj[key];
+    if (Array.isArray(arr)) {
+      for (const item of arr) {
+        decifraCampo(item, resto, llave, oaep, operacion);
+      }
+    }
+    return;
+  }
+
+  // Último nivel → aplicar descifrado
+  if (resto.length === 0) {
+    if (
+      obj.hasOwnProperty(parte) &&
+      obj[parte] !== null &&
+      obj[parte] !== undefined
+    ) {
+      try {
+        obj[parte] = operacion
+          ? Cifrado.getInstance().validaCadenaRSA(obj[parte], llave, oaep)
+          : oaep
+          ? Cifrado.getInstance().descifrarRSAOAEP(obj[parte], llave)
+          : Cifrado.getInstance().descifraRSAPSK1(obj[parte], llave);
+      } catch (e) {
+        console.log(
+          "🚀 ~ SolicitudesController ~ decifraCampo ~  obj[parte]:",
+          obj[parte]
+        );
+        console.warn(`Error descifrando campo ${parte}:`, e);
+      }
+    }
+    return;
+  }
+
+  // Paso intermedio → bajar un nivel
+  if (obj[parte]) {
+    decifraCampo(obj[parte], resto, llave, oaep, operacion);
+  }
 };
 
 export * from ".";
