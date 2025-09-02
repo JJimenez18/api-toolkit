@@ -854,9 +854,12 @@ export const validaCadenaFolios = (
 
   return arr.map((field) => {
     let validador = body(field)
-      .isString().withMessage(`${field} debe ser un string`)
-      .matches(/^[A-Za-z0-9+-]+$/).withMessage(`${field} solo puede contener letras, números, + o -`)
-      .isLength({ min, max }).withMessage(`${field} debe tener entre ${min} y ${max} caracteres`)
+      .isString()
+      .withMessage(`${field} debe ser un string`)
+      .matches(/^[A-Za-z0-9+-]+$/)
+      .withMessage(`${field} solo puede contener letras, números, + o -`)
+      .isLength({ min, max })
+      .withMessage(`${field} debe tener entre ${min} y ${max} caracteres`)
       .custom((value: string) => {
         if (/^[0-9]+$/.test(value) && /^0+$/.test(value)) {
           throw new Error(`${field} no puede ser solo ceros`);
@@ -867,7 +870,9 @@ export const validaCadenaFolios = (
         return true;
       });
 
-    return esOpcional ? validador.optional() : validador.notEmpty().withMessage(`${field} es requerido`);
+    return esOpcional
+      ? validador.optional()
+      : validador.notEmpty().withMessage(`${field} es requerido`);
   });
 };
 
@@ -1074,12 +1079,128 @@ export const validaCamposSiPadreExiste = (
       .bail()
       .isString()
       .withMessage(`El campo ${fullPath} debe ser una cadena`)
-      .trim()
-      // .custom((g)=>{
-      //   console.log("🚀 ~ validaCamposSiPadreExiste ~ g:", g)
-      //   return true
-      // })
+      .trim();
+    // .custom((g)=>{
+    //   console.log("🚀 ~ validaCamposSiPadreExiste ~ g:", g)
+    //   return true
+    // })
   });
+};
+
+export interface IPaginacion<T> {
+  paginacion: {
+    pagina: number;
+    registrosPagina: number;
+    totalPaginas: number;
+    totalRegistros: number;
+  };
+  registros: T[];
+}
+
+export const generaPaginas = <T>(
+  input: {
+    paginacion?: {
+      pagina: number;
+      registrosPagina: number;
+    };
+  },
+  data: T[]
+): IPaginacion<T> => {
+  const pagina = input.paginacion?.pagina ?? 1;
+  const registrosPagina = input.paginacion?.registrosPagina ?? 10;
+
+  const totalRegistros = data.length;
+  const totalPaginas = Math.ceil(totalRegistros / registrosPagina);
+
+  const inicio = (pagina - 1) * registrosPagina;
+  const fin = inicio + registrosPagina;
+
+  const resultados = data.slice(inicio, fin);
+
+  return {
+    paginacion: {
+      pagina: Number(pagina),
+      registrosPagina: Number(registrosPagina),
+      totalPaginas: Number(totalPaginas),
+      totalRegistros: Number(totalRegistros),
+    },
+    registros: resultados,
+  };
+};
+
+interface ValidarNumeroOptions {
+  esOpcional?: boolean;
+  min?: number;
+  max?: number;
+}
+
+/**
+ * Valida que un campo sea un número entero real (no string, no decimal).
+ * Funciona para campos simples o en arrays/objetos anidados usando "*".
+ * @param path ruta al campo, ej: "paginacion.pagina" o "solicitudes.*.id"
+ * @param options Opciones de validación: esOpcional, min, max
+ */
+export const validarNumeroEnteroMiddleware = (
+  path: string,
+  options: ValidarNumeroOptions = {}
+) => {
+  const {
+    esOpcional = false,
+    min = Number.MIN_SAFE_INTEGER,
+    max = Number.MAX_SAFE_INTEGER,
+  } = options;
+
+  return (req: Request, res: Response, next: NextFunction) => {
+    const keys = path.split(".");
+
+    const validate = (obj: any, idxKeys = 0, parentPath = "") => {
+      const key = keys[idxKeys];
+      const currentPath = parentPath ? `${parentPath}.${key}` : key;
+      const value = obj?.[key];
+
+      if (key === "*") {
+        if (!Array.isArray(obj))
+          throw new Error(`${parentPath} debe ser un array`);
+        obj.forEach((el, idx) =>
+          validate(el, idxKeys + 1, `${parentPath}[${idx}]`)
+        );
+        return;
+      }
+
+      if (idxKeys < keys.length - 1) {
+        if (value === undefined || value === null) {
+          if (!esOpcional) throw new Error(`${currentPath} es requerido`);
+          return;
+        }
+        validate(value, idxKeys + 1, currentPath);
+        return;
+      }
+
+      // Validación final
+      if (value === undefined || value === null) {
+        if (!esOpcional) throw new Error(`${currentPath} es requerido`);
+        return;
+      }
+
+      if (typeof value !== "number") {
+        throw new Error(`${currentPath} debe ser un número, no un string`);
+      }
+
+      if (!Number.isInteger(value)) {
+        throw new Error(`${currentPath} debe ser un número entero`);
+      }
+
+      if (value < min) throw new Error(`${currentPath} debe ser >= ${min}`);
+      if (value > max) throw new Error(`${currentPath} debe ser <= ${max}`);
+    };
+
+    try {
+      validate(req.body);
+      next();
+    } catch (err: any) {
+      throw errorApi.peticionNoValida.parametrosNoValidos(err.message);
+    }
+  };
 };
 
 export * from ".";
