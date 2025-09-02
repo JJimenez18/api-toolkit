@@ -1282,8 +1282,8 @@ const decifraCampo = (
         obj[parte] = operacion
           ? Cifrado.getInstance().validaCadenaRSA(obj[parte], llave, oaep)
           : oaep
-          ? Cifrado.getInstance().descifrarRSAOAEP(obj[parte], llave)
-          : Cifrado.getInstance().descifraRSAPSK1(obj[parte], llave);
+          ? Cifrado.getInstance().descifrarRSAOAEP(obj[parte], llave).valor
+          : Cifrado.getInstance().descifraRSAPSK1(obj[parte], llave).valor;
       } catch (e) {
         console.log(
           "🚀 ~ SolicitudesController ~ decifraCampo ~  obj[parte]:",
