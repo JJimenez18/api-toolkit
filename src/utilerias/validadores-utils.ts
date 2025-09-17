@@ -1508,4 +1508,29 @@ const decifraCampo = (
         });
     };
 
+    export const validacionImporte = (field: string, optional = false): ValidationChain[] => {
+        let validator = body(field)
+            .isString()
+            .withMessage(`${field} debe ser una cadena.`)
+            .bail()
+            .matches(/^\d+\.\d{2}$/) // exactamente dos decimales
+            .withMessage(`${field} debe ser un número válido con dos decimales.`)
+            .bail()
+            .custom((value) => {
+                const num = parseFloat(value);
+                if (isNaN(num)) {
+                    throw new Error(`${field} debe ser un número válido.`);
+                }
+                return true;
+            });
+
+        if (optional) {
+            validator = validator.optional();
+        } else {
+            validator = validator.notEmpty().withMessage(`${field} no puede estar vacío.`);
+        }
+
+        return [validator];
+    };
+
 export * from ".";

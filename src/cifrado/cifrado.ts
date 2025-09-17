@@ -595,7 +595,6 @@ export class Cifrado {
                 resp.mensaje = 'Longitud de clave AES inválida (debe ser 128 o 256 bits)';
                 return resp;
             }
-            console.log('🚀 ~ SolicitudesController ~ algorithm:', algorithm);
 
             // Decodificar el mensaje base64 recibido
             const encryptedData = Buffer.from(cifradoBase64, 'base64');
