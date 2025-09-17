@@ -513,4 +513,123 @@ export class Cifrado {
       );
     }
   };
+
+  public cifrar_AES_GCM_NoPadding_V2 = (
+        textoPlano: string,
+        accesoSimetrico: string,
+        codigoAutentificacionHash: string,
+    ): ICifradoResponse => {
+        const resp: ICifradoResponse = {
+            error: true,
+            mensaje: '',
+            valor: '',
+        };
+
+        try {
+            // Convertir clave simétrica desde base64 a Buffer
+            const aesKey = Buffer.from(accesoSimetrico, 'base64');
+
+            let algorithm: string;
+            if (aesKey.length === 16) {
+                algorithm = 'aes-128-gcm';
+            } else if (aesKey.length === 32) {
+                algorithm = 'aes-256-gcm';
+            } else {
+                resp.mensaje = 'Longitud de clave AES inválida (debe ser 128 o 256 bits)';
+                return resp;
+            }
+
+            // Generar IV (12 bytes recomendado para GCM)
+            const iv = randomBytes(12);
+
+            // Crear instancia de cifrado
+            const cipher: any = createCipheriv(algorithm, aesKey, iv);
+
+            // Agregar datos asociados (AAD) si aplica
+            // if (codigoAutentificacionHash) {
+            cipher.setAAD(Buffer.from(codigoAutentificacionHash, 'utf-8'));
+            // }
+
+            // Cifrar
+            let encrypted = cipher.update(textoPlano, 'utf-8');
+            encrypted = Buffer.concat([encrypted, cipher.final()]);
+
+            // Obtener AuthTag
+            const authTag = cipher.getAuthTag();
+
+            // Concatenar IV + TextoCifrado + AuthTag
+            const encryptedData = Buffer.concat([iv, encrypted, authTag]);
+
+            // Codificar en base64 para transporte
+            resp.valor = encryptedData.toString('base64');
+            resp.error = false;
+        } catch (error: any) {
+            console.error(`Problema en cifrado: ${error.message}`);
+            resp.mensaje = `Problema en cifrado: ${error.message}`;
+        }
+
+        return resp;
+    };
+
+    public decifrar_AES_GCM_NoPadding_V2 = (
+        cifradoBase64: string,
+        accesoSimetrico: string,
+        codigoAutentificacionHash: string,
+    ): ICifradoResponse => {
+        const resp: ICifradoResponse = {
+            error: true,
+            mensaje: '',
+            valor: '',
+        };
+
+        try {
+            // Convertir clave simétrica desde base64 a Buffer
+            const aesKey = Buffer.from(accesoSimetrico, 'base64');
+
+            let algorithm: string;
+            if (aesKey.length === 16) {
+                algorithm = 'aes-128-gcm';
+            } else if (aesKey.length === 32) {
+                algorithm = 'aes-256-gcm';
+            } else {
+                resp.mensaje = 'Longitud de clave AES inválida (debe ser 128 o 256 bits)';
+                return resp;
+            }
+            console.log('🚀 ~ SolicitudesController ~ algorithm:', algorithm);
+
+            // Decodificar el mensaje base64 recibido
+            const encryptedData = Buffer.from(cifradoBase64, 'base64');
+
+            // Extraer IV (primeros 12 bytes)
+            const iv = encryptedData.slice(0, 12);
+
+            // Extraer AuthTag (últimos 16 bytes)
+            const authTag = encryptedData.slice(encryptedData.length - 16);
+
+            // Extraer texto cifrado (entre IV y AuthTag)
+            const encryptedText = encryptedData.slice(12, encryptedData.length - 16);
+
+            const decipher: any = createDecipheriv(algorithm, aesKey, iv);
+
+            // Establecer los datos asociados (si el backend los usó al cifrar)
+            // if (codigoAutentificacionHash) {
+            decipher.setAAD(Buffer.from(codigoAutentificacionHash, 'utf-8'));
+            // }
+
+            // Establecer AuthTag para verificar integridad
+            decipher.setAuthTag(authTag);
+
+            // Descifrar
+            let decrypted = decipher.update(encryptedText, undefined, 'utf-8');
+            decrypted += decipher.final('utf-8');
+
+            resp.valor = decrypted;
+            resp.error = false;
+        } catch (error: any) {
+            console.error(`Problema en descifrado: ${error.message}`);
+            resp.mensaje = `Problema en descifrado: ${error.message}`;
+        }
+        return resp;
+    };
+
 }
