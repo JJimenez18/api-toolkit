@@ -134,36 +134,6 @@ export class Utilerias {
   }) => Math.trunc(param.final ? (param.final - param.inicio) : performance.now() - param.inicio)
 }
 
-export const generaResponse = async (
-  respuesta: Response,
-  data: {
-    codigoHttp: number;
-    mensaje?: string;
-    resultado?: any;
-  },
-): Promise<Response> => {
-  const { codigoHttp, mensaje, resultado } = data;
-  switch (codigoHttp) {
-    case 200: {
-      return resultado ? exitoApi.exito(respuesta, resultado) : exitoApi.exito(respuesta);
-    }
-    case 201: {
-      return resultado ? exitoApi.creado(respuesta, resultado) : exitoApi.creado(respuesta);
-    }
-    case 204: {
-      return exitoApi.sinContenido(respuesta);
-    }
-    case 401:
-      throw errorApi.peticionNoAutorizada.parametrosNoValidos(mensaje || EMensajesError.NOT_AUTH);
-    case 400:
-      throw errorApi.peticionNoValida.parametrosNoValidos(mensaje || EMensajesError.BAD_REQ);
-    case 404:
-      throw errorApi.recursoNoEncontrado.recursoBDNoEncontrado(mensaje || EMensajesError.NOT_FOUND);
-    default:
-      throw errorApi.errorInternoServidor.desconocido(mensaje || EMensajesError.ERROR);
-  }
-};
-
 export const parseXmlToJson = async (xml: any): Promise<any> =>
   new Promise((resolve, reject) => {
     parseString(xml, (err, result) => {
