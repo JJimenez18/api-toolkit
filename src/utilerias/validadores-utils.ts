@@ -1533,4 +1533,80 @@ const decifraCampo = (
         return [validator];
     };
 
+    /**
+     * Validador de cadenas para números enteros o decimales (dinero) usando express-validator.
+     *
+     * Propósito:
+     * Genera un arreglo de ValidationChain para un campo que representa números enteros
+     * o valores monetarios, aplicando reglas de formato y longitud.
+     *
+     * Reglas aplicadas:
+     * - El campo debe ser una cadena (string).
+     * - No puede estar vacío si no es opcional.
+     * - No puede ser "true" ni "false" como texto.
+     * - Si dinero = false: solo enteros, puede ser negativo con "-", no se permiten decimales ni "+".
+     * - Si dinero = true: permite números con un solo punto decimal, signo "-" opcional, no se permite "+".
+     * - La longitud mínima por defecto es 1 y máxima 15 caracteres.
+     *
+     * Parámetros:
+     * @param field    Nombre del campo a validar.
+     * @param location Ubicación del campo en la request: "body", "query" o "param". Por defecto "body".
+     * @param optional Indica si el campo es opcional. Por defecto `false`.
+     * @param min      Longitud mínima permitida. Por defecto `1`.
+     * @param max      Longitud máxima permitida. Por defecto `15`.
+     * @param dinero   Indica si se permiten decimales (true) o solo enteros (false). Por defecto `false`.
+     */
+    export const validaCadenaNumeros = (
+        field: string,
+        location: 'body' | 'query' | 'param' = 'body',
+        optional: boolean = false,
+        min: number = 0,
+        max: number = 15,
+        dinero: boolean = false,
+    ): ValidationChain[] => {
+        let validator;
+
+        // Seleccionar de dónde viene el campo
+        switch (location) {
+            case 'query':
+                validator = query(field);
+                break;
+            case 'param':
+                validator = param(field);
+                break;
+            case 'body':
+            default:
+                validator = body(field);
+                break;
+        }
+
+        // Regex según si es dinero o solo enteros
+        const regex = dinero
+            ? /^(?!true$)(?!false$)-?[0-9]+(\.[0-9]+)?$/ // permite un decimal
+            : /^(?!true$)(?!false$)-?[0-9]+$/; // solo enteros
+
+        // Reglas base
+        validator = validator
+            .isString()
+            .withMessage(`${field} debe ser una cadena.`)
+            .bail()
+            .matches(regex)
+            .withMessage(
+                dinero
+                    ? `${field} solo debe contener números, un punto decimal opcional, puede ser negativo con '-', y no puede ser "true" o "false".`
+                    : `${field} solo debe contener números enteros, puede ser negativo con '-', y no puede ser "true" o "false".`,
+            )
+            .isLength({ min, max })
+            .withMessage(`${field} debe tener entre ${min} y ${max} caracteres.`);
+
+        // Opcionalidad
+        if (optional) {
+            validator = validator.optional();
+        } else {
+            validator = validator.notEmpty().withMessage(`${field} no puede estar vacío.`);
+        }
+
+        return [validator];
+    };
+
 export * from ".";
