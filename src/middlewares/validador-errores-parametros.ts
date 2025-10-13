@@ -44,9 +44,28 @@ export class ValidadorErroresParametros {
             const {codigoError, mensajesError} = convertidor(err);
             throw errorApi.peticionNoValida.parametrosNoValidos(
                 mensajesError,
-                Number.isInteger(codigoError) ? codigoError : 4000
+                Number.isInteger(codigoError) ? codigoError : 4000,
+                (solicitud as any).apiName
             );
         }
         siguienteMiddleware();
     };
 }
+/* export class ValidadorErroresParametros_v2 {
+  static validar(apiName?: string) {
+    return (solicitud: Request, respuesta: Response, siguienteMiddleware: NextFunction): void => {
+      const errores = validationResult(solicitud);
+      if (!errores.isEmpty()) {
+        const err = errores.array().map((error: ValidationError) => error.msg);
+        const { codigoError, mensajesError } = convertidor(err);
+
+        throw errorApi.peticionNoValida.parametrosNoValidos(
+          mensajesError,
+          Number.isInteger(codigoError) ? codigoError : 4000,
+          apiName
+        );
+      }
+      siguienteMiddleware();
+    };
+  }
+} */

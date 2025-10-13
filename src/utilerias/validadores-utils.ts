@@ -15,6 +15,7 @@ import { LoggerS3 } from "../middlewares/logger.s3";
 import { performance } from "perf_hooks";
 import { IDetalleServicio } from "../models/model";
 import { Cifrado } from "../cifrado";
+import { VariablesEntorno } from "./variables-entorno";
 
 export const formatoFecha =
   /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d{3})?$/;
@@ -221,17 +222,19 @@ export const validaXIdAcceso = async (
   if (!/^[0-9]{10,20}$/.test(value)) {
     throw errorApi.peticionNoAutorizada.faltanParametros(
       EMensajesError.NOT_AUTH,
-      4100
+      4100,
+      (solicitud as any).apiName
     );
   }
   sig();
 };
 
 export const generaRespuesta = async (
-  data: { codigoHttp: number; mensaje?: string; respuesta?: unknown },
+  data: { codigoHttp: number; mensaje?: string; apiname?: string, respuesta?: unknown },
   resp: Response
 ): Promise<Response> => {
-  const { codigoHttp, mensaje, respuesta } = data;
+  const { codigoHttp, mensaje, respuesta, apiname } = data;
+  const nameapi = apiname || VariablesEntorno.API_NOMBRE;
   switch (codigoHttp) {
     case 200:
       return exitoApi.exito(resp, respuesta);
@@ -241,19 +244,27 @@ export const generaRespuesta = async (
       return exitoApi.sinContenido(resp);
     case 401:
       throw errorApi.peticionNoAutorizada.parametrosNoValidos(
-        mensaje || EMensajesError.NOT_AUTH
+        mensaje || EMensajesError.NOT_AUTH,
+        undefined,
+        nameapi
       );
     case 400:
       throw errorApi.peticionNoValida.parametrosNoValidos(
-        mensaje || EMensajesError.BAD_REQ
+        mensaje || EMensajesError.BAD_REQ,
+        undefined,
+        nameapi
       );
     case 404:
       throw errorApi.recursoNoEncontrado.recursoBDNoEncontrado(
-        mensaje || EMensajesError.NOT_FOUND
+        mensaje || EMensajesError.NOT_FOUND,
+        undefined,
+        nameapi
       );
     default:
       throw errorApi.errorInternoServidor.desconocido(
-        mensaje || EMensajesError.ERROR
+        mensaje || EMensajesError.ERROR,
+        undefined,
+        nameapi
       );
   }
 };
@@ -271,7 +282,8 @@ export const verificaToken = async (
   if (!process.env.TOKEN_KEY_PUBLICA) {
     throw errorApi.peticionNoAutorizada.tokenNoValido(
       "El campo TOKEN_KEY_PUBLICA, no es valida, favor de validar",
-      4101
+      4101,
+      (solicitud as any).apiName
     );
   }
   const llaveToken = [
@@ -292,13 +304,15 @@ export const verificaToken = async (
         );
         throw errorApi.peticionNoAutorizada.tokenNoValido(
           "El token no es valido, favor de solicitar uno nuevo",
-          4104
+          4104,
+          (solicitud as any).apiName
         );
       }
     }
   );
   return siguiente();
 };
+
 
 export const isBase64 = (str: string): boolean => {
   if (typeof str !== "string") return false;
@@ -943,9 +957,11 @@ export const generaResponse = async (
     codigoHttp: number;
     mensaje?: string;
     resultado?: any;
+    nameapi?: string;
+    codigoInterno?: number
   }
 ): Promise<Response> => {
-  const { codigoHttp, mensaje, resultado } = data;
+  const { codigoHttp, mensaje, resultado, nameapi, codigoInterno } = data;
   switch (codigoHttp) {
     case 200: {
       return resultado
@@ -958,23 +974,31 @@ export const generaResponse = async (
         : exitoApi.creado(respuesta);
     }
     case 204: {
-      return exitoApi.sinContenido(respuesta);
+      return exitoApi.sinContenido(respuesta, mensaje, codigoInterno, nameapi);
     }
     case 401:
       throw errorApi.peticionNoAutorizada.parametrosNoValidos(
-        mensaje || EMensajesError.NOT_AUTH
+        mensaje || EMensajesError.NOT_AUTH,
+        codigoInterno,
+        nameapi
       );
     case 400:
       throw errorApi.peticionNoValida.parametrosNoValidos(
-        mensaje || EMensajesError.BAD_REQ
+        mensaje || EMensajesError.BAD_REQ,
+        codigoInterno,
+        nameapi
       );
     case 404:
       throw errorApi.recursoNoEncontrado.recursoBDNoEncontrado(
-        mensaje || EMensajesError.NOT_FOUND
+        mensaje || EMensajesError.NOT_FOUND,
+        codigoInterno,
+        nameapi
       );
     default:
       throw errorApi.errorInternoServidor.desconocido(
-        mensaje || EMensajesError.ERROR
+        mensaje || EMensajesError.ERROR,
+        codigoInterno,
+        nameapi
       );
   }
 };

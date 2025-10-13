@@ -17,7 +17,7 @@ export type DetallesEntrada = string | string[];
  * con la finalidad de darle un formato específico al objeto 'detalles'
  */
 // eslint-disable-next-line max-len
-export type IDetallesError = (detalles: DetallesEntrada, codigoInterno?: number, transformador?: ITransformador) => ErrorApi;
+export type IDetallesError = (detalles: DetallesEntrada, codigoInterno?: number, apiName?: string, transformador?: ITransformador) => ErrorApi;
 
 export class ErrorApi extends Error {
   // private detalles: string[] = [];
@@ -32,6 +32,8 @@ export class ErrorApi extends Error {
     // private detallesGeneral: string | string[],
 
     private detalles: DetallesEntrada,
+
+    private apiName: string,
 
     private transformador?: ITransformador,
   ) {
@@ -48,6 +50,9 @@ export class ErrorApi extends Error {
 
   public getDetalles = (): string | string[] => this.detalles;
 
+  public getApiName = (): string => this.apiName;
+
+
   // public getDetalles = (): IDetallesError[] => this.detalles;
 
   private convertirDetalles = (): string[] => {
@@ -62,7 +67,7 @@ export class ErrorApi extends Error {
   //   respuesta, this.getCodigoHttp(), this.codigoInterno, this.mensaje, this.detalles,
   // );
   public responder = (respuesta: Response): Response<unknown> => {
-    const codigoError = `${this.codigoHttp}.${VariablesEntorno.API_NOMBRE}.${this.errorInterno}`;
+    const codigoError = `${this.codigoHttp}.${this.apiName || VariablesEntorno.API_NOMBRE}.${this.errorInterno}`;
     const respuestaApi = {
       codigo: codigoError,
       mensaje: this.mensaje,

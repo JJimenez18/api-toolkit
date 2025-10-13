@@ -1,4 +1,5 @@
 /* eslint-disable max-len */
+import { VariablesEntorno } from '../../utilerias';
 import {
   DetallesEntrada, ErrorApi, IDetallesError, ITransformador,
 } from './error-api';
@@ -15,10 +16,10 @@ export interface IOpcionesErrorRecursoNoEncontrado {
 }
 
 export const objErrorRecursoNoEncontrado = (externo: number, mensaje: string): IOpcionesErrorRecursoNoEncontrado => ({
-  desconocido: (detalles: DetallesEntrada, codigoInterno?: number, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1000, mensaje, detalles, transformador),
-  rutaNoValida: (detalles: DetallesEntrada, codigoInterno?: number, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1001, mensaje, detalles, transformador),
-  recursoNoEncontrado: (detalles: DetallesEntrada, codigoInterno?: number, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1002, mensaje, detalles, transformador),
-  recursoBDNoEncontrado: (detalles: DetallesEntrada, codigoInterno?: number, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1003, mensaje, detalles, transformador),
+  desconocido: (detalles: DetallesEntrada, codigoInterno?: number, apiName?: string, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1000, mensaje, detalles, apiName || VariablesEntorno.API_NOMBRE, transformador),
+  rutaNoValida: (detalles: DetallesEntrada, codigoInterno?: number, apiName?: string, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1001, mensaje, detalles, apiName || VariablesEntorno.API_NOMBRE, transformador),
+  recursoNoEncontrado: (detalles: DetallesEntrada, codigoInterno?: number, apiName?: string, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1002, mensaje, detalles, apiName || VariablesEntorno.API_NOMBRE, transformador),
+  recursoBDNoEncontrado: (detalles: DetallesEntrada, codigoInterno?: number, apiName?: string, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1003, mensaje, detalles, apiName || VariablesEntorno.API_NOMBRE, transformador),
 
   /* desconocido: (detalles: DetallesEntrada, transformador?: ITransformador) => new ErrorApi(externo, 1000, mensaje, detalles, transformador),
   rutaNoValida: (detalles: DetallesEntrada, transformador?: ITransformador) => new ErrorApi(externo, 1001, mensaje, detalles, transformador),

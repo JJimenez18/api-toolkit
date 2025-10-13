@@ -12,16 +12,16 @@ export interface IRespApi {
 export interface IOpcionesExito {
   exito: (respuesta: Response, objetoRespuesta?: unknown) => Response<IRespApi>;
   creado: (respuesta: Response, objetoRespuesta?: unknown) => Response<IRespApi>;
-  sinContenido: (respuesta: Response, mensaje?: string, codigoInterno?: number) => Response<IRespApi>;
+  sinContenido: (respuesta: Response, mensaje?: string, codigoInterno?: number, apiName?: string) => Response<IRespApi>;
 }
 
-const respuestaNoContent = (respuesta: Response,  mensaje: string, codigoInterno: number): Response<IRespApi> => {
+const respuestaNoContent = (respuesta: Response, mensaje: string, codigoInterno: number, apiName: string): Response<IRespApi> => {
   const codigo = 204;   
-  const xCodigo = `${codigo}.${process.env.API_NOMBRE}.${codigoInterno}`;
+  const xCodigo = `${codigo}.${apiName}.${codigoInterno}`;
   respuesta.setHeader('x-codigo', xCodigo);
   respuesta.setHeader('x-mensaje', 'Operación Exitosa, no se encontró información.');
   respuesta.setHeader('x-folio', Utilerias.generarFolio());
-  respuesta.setHeader('x-info', `https://baz-developer.bancoazteca.com.mx/info#${codigo}.${process.env.API_NOMBRE}.20400`);
+  respuesta.setHeader('x-info', `https://baz-developer.bancoazteca.com.mx/info#${codigo}.${apiName}.20400`);
   respuesta.setHeader('x-detalle', mensaje);
   return respuesta.status(204).send();
 };
@@ -51,5 +51,5 @@ const generarRespuesta = (
 export const exitoApi: IOpcionesExito = {
   exito: (respuesta: Response, objetoRespuesta?: unknown) => generarRespuesta(respuesta, 200, objetoRespuesta),
   creado: (respuesta: Response, objetoRespuesta?: unknown) => generarRespuesta(respuesta, 201, objetoRespuesta),
-  sinContenido: (respuesta: Response, mensaje?: string, codigoInterno?: number) => respuestaNoContent(respuesta, mensaje || EMensajesError.NOT_FOUND, codigoInterno || 204000),
+  sinContenido: (respuesta: Response, mensaje?: string, codigoInterno?: number, apiName?: string) => respuestaNoContent(respuesta, mensaje || EMensajesError.NOT_FOUND, codigoInterno || 204000, apiName || `${process.env.API_NOMBRE}`),
 };

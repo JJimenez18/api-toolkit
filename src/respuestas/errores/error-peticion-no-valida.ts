@@ -1,7 +1,11 @@
 /* eslint-disable max-len */
+import { VariablesEntorno } from "../../utilerias";
 import {
-  DetallesEntrada, ErrorApi, ITransformador, IDetallesError,
-} from './error-api';
+  DetallesEntrada,
+  ErrorApi,
+  ITransformador,
+  IDetallesError,
+} from "./error-api";
 
 export interface IOpcionesErrorPeticionNoValida {
   /**
@@ -25,26 +29,120 @@ export interface IOpcionesErrorPeticionNoValida {
    */
   parametrosNoValidos: IDetallesError;
   /**
-     * Error interno = 1005
-     */
+   * Error interno = 1005
+   */
   peticionNoAutorizada: IDetallesError;
   /**
-     * Error interno = 1006
-     */
-   peticionInvalida: IDetallesError;
+   * Error interno = 1006
+   */
+  peticionInvalida: IDetallesError;
 }
 
-export const objErrorPeticionNoValida = (externo: number, mensaje: string): IOpcionesErrorPeticionNoValida => ({
+export const objErrorPeticionNoValida = (
+  externo: number,
+  mensaje: string
+): IOpcionesErrorPeticionNoValida => ({
   /* desconocido: (detalles: DetallesEntrada, transformador?: ITransformador) => new ErrorApi(externo, 1000, mensaje, detalles, transformador),
   tokenNoEncontrado: (detalles: DetallesEntrada, transformador?: ITransformador) => new ErrorApi(externo, 1001, mensaje, detalles, transformador),
   tokenNoValido: (detalles: DetallesEntrada, transformador?: ITransformador) => new ErrorApi(externo, 1002, mensaje, detalles, transformador),
   faltanParametros: (detalles: DetallesEntrada, transformador?: ITransformador) => new ErrorApi(externo, 1003, mensaje, detalles, transformador),
   parametrosNoValidos: (detalles: DetallesEntrada, transformador?: ITransformador) => new ErrorApi(externo, 1004, mensaje, detalles, transformador), */
-  desconocido: (detalles: DetallesEntrada, codigoInterno?: number, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1000, mensaje, detalles, transformador),
-  tokenNoEncontrado: (detalles: DetallesEntrada, codigoInterno?: number, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1001, mensaje, detalles, transformador),
-  tokenNoValido: (detalles: DetallesEntrada, codigoInterno?: number, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1002, mensaje, detalles, transformador),
-  faltanParametros: (detalles: DetallesEntrada, codigoInterno?: number, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1003, mensaje, detalles, transformador),
-  parametrosNoValidos: (detalles: DetallesEntrada, codigoInterno?: number, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1004, mensaje, detalles, transformador),
-  peticionNoAutorizada: (detalles: DetallesEntrada, codigoInterno?: number, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1005, mensaje, detalles, transformador),
-  peticionInvalida: (detalles: DetallesEntrada, codigoInterno?: number, transformador?: ITransformador) => new ErrorApi(externo, codigoInterno || 1006, mensaje, detalles, transformador),
+  desconocido: (
+    detalles: DetallesEntrada,
+    codigoInterno?: number,
+    apiName: string = VariablesEntorno.API_NOMBRE,
+    transformador?: ITransformador
+  ) =>
+    new ErrorApi(
+      externo,
+      codigoInterno || 1000,
+      mensaje,
+      detalles,
+      apiName,
+      transformador
+    ),
+  tokenNoEncontrado: (
+    detalles: DetallesEntrada,
+    codigoInterno?: number,
+    apiName: string = VariablesEntorno.API_NOMBRE,
+    transformador?: ITransformador
+  ) =>
+    new ErrorApi(
+      externo,
+      codigoInterno || 1001,
+      mensaje,
+      detalles,
+      apiName,
+      transformador
+    ),
+  tokenNoValido: (
+    detalles: DetallesEntrada,
+    codigoInterno?: number,
+    apiName: string = VariablesEntorno.API_NOMBRE,
+    transformador?: ITransformador
+  ) =>
+    new ErrorApi(
+      externo,
+      codigoInterno || 1002,
+      mensaje,
+      detalles,
+      apiName,
+      transformador
+    ),
+  faltanParametros: (
+    detalles: DetallesEntrada,
+    codigoInterno?: number,
+    apiName: string = VariablesEntorno.API_NOMBRE,
+    transformador?: ITransformador
+  ) =>
+    new ErrorApi(
+      externo,
+      codigoInterno || 1003,
+      mensaje,
+      detalles,
+      apiName,
+      transformador
+    ),
+  parametrosNoValidos: (
+    detalles: DetallesEntrada,
+    codigoInterno?: number,
+    apiName: string = VariablesEntorno.API_NOMBRE,
+    transformador?: ITransformador
+  ) =>
+    new ErrorApi(
+      externo,
+      codigoInterno || 1004,
+      mensaje,
+      detalles,
+      apiName,
+      transformador
+    ),
+  peticionNoAutorizada: (
+    detalles: DetallesEntrada,
+    codigoInterno?: number,
+    apiName: string = VariablesEntorno.API_NOMBRE,
+    transformador?: ITransformador
+  ) =>
+    new ErrorApi(
+      externo,
+      codigoInterno || 1005,
+      mensaje,
+      detalles,
+      apiName,
+      transformador
+    ),
+  peticionInvalida: (
+    detalles: DetallesEntrada,
+    codigoInterno?: number,
+    apiName: string = VariablesEntorno.API_NOMBRE,
+    transformador?: ITransformador
+  ) =>
+    new ErrorApi(
+      externo,
+      codigoInterno || 1006,
+      mensaje,
+      detalles,
+      apiName,
+      transformador
+    ),
 });

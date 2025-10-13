@@ -1,4 +1,5 @@
 /* eslint-disable max-len */
+import { VariablesEntorno } from '../../utilerias';
 import {
   DetallesEntrada, ErrorApi, ITransformador, IDetallesError,
 } from './error-api';
@@ -12,8 +13,8 @@ export interface IOpcionesErrorInternoServidor {
 
 export const objErrorInternoServidor = (externo: number, mensaje: string): IOpcionesErrorInternoServidor => ({
 
-  desconocido: (detalles: DetallesEntrada, errorInterno?: number, transformador?: ITransformador) => new ErrorApi(externo, errorInterno || 1000, mensaje, detalles, transformador),
-  bd: (detalles: DetallesEntrada, errorInterno?: number, transformador?: ITransformador) => new ErrorApi(externo, errorInterno || 1001, mensaje, detalles, transformador),
+  desconocido: (detalles: DetallesEntrada, errorInterno?: number, apiName?: string, transformador?: ITransformador) => new ErrorApi(externo, errorInterno || 1000, mensaje, detalles, apiName || VariablesEntorno.API_NOMBRE, transformador),
+  bd: (detalles: DetallesEntrada, errorInterno?: number, apiName?: string, transformador?: ITransformador) => new ErrorApi(externo, errorInterno || 1001, mensaje, detalles, apiName || VariablesEntorno.API_NOMBRE, transformador),
 
   /* desconocido: (detalles: DetallesEntrada, transformador?: ITransformador) => new ErrorApi(externo, 1000, mensaje, detalles, transformador),
   bd: (detalles: DetallesEntrada, transformador?: ITransformador) => new ErrorApi(externo, 1001, mensaje, detalles, transformador), */
