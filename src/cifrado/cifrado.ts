@@ -65,7 +65,7 @@ export class Cifrado {
         keyPrivada,
         "-----END PRIVATE KEY-----",
       ].join("\n");
-      console.log(llavePriv);
+      // console.log(llavePriv);
       const x = crypto
         .privateDecrypt(
           { key: llavePriv, padding: crypto.constants.RSA_PKCS1_PADDING },

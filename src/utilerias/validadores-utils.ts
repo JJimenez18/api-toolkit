@@ -219,7 +219,7 @@ export const validaXIdAcceso = async (
   const value = solicitud.headers["x-id-acceso"]
     ? solicitud.headers["x-id-acceso"].toString()
     : "";
-  if (!/^[0-9]{10,20}$/.test(value)) {
+  if (!/^[0-9]{5,20}$/.test(value)) {
     throw errorApi.peticionNoAutorizada.faltanParametros(
       EMensajesError.NOT_AUTH,
       4100,
@@ -228,6 +228,35 @@ export const validaXIdAcceso = async (
   }
   sig();
 };
+
+export const validaXIdAccesoString = async (
+  solicitud: Request,
+  respuesta: Response,
+  sig: NextFunction
+): Promise<void> => {
+  const value = solicitud.headers["x-id-acceso"]
+    ? solicitud.headers["x-id-acceso"].toString().trim()
+    : "";
+
+  const esObjectIdValido = /^[0-9a-fA-F]{24}$/.test(value);
+
+  if (!esObjectIdValido) {
+    // Si no es un hexadecimal de 24 caracteres, se rechaza
+    throw errorApi.peticionNoAutorizada.faltanParametros(
+      EMensajesError.NOT_AUTH,
+      4100,
+      (solicitud as any).apiName
+    );
+  }
+  sig();
+};
+
+export const validaToken = (): Array<ValidationChain> => [
+  header("token")
+    .trim()
+    .notEmpty()
+    .withMessage("No se ha capturado el token, favor de validar.4016"),
+]
 
 export const generaRespuesta = async (
   data: { codigoHttp: number; mensaje?: string; apiname?: string, respuesta?: unknown },

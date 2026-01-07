@@ -1,8 +1,6 @@
 import { performance } from 'perf_hooks';
 import { parseString } from 'xml2js';
-import { EMensajesError } from '../enum';
-import { errorApi, exitoApi } from '../respuestas';
-import {Response} from 'express'
+import { TraceId } from '../middlewares';
 
 export class Utilerias {
   static generarFolio = (): string => {
@@ -14,7 +12,7 @@ export class Utilerias {
     const minuto = fecha.getMinutes() < 10 ? `0${fecha.getMinutes()}` : fecha.getMinutes();
     const segundo = fecha.getSeconds() < 10 ? `0${fecha.getSeconds()}` : fecha.getSeconds();
     // eslint-disable-next-line max-len
-    return `${fecha.getFullYear()}${mes}${dia}${hora}${minuto}${segundo}${fecha.getMilliseconds()}`;
+    return TraceId.obtenerTraceId() || `${fecha.getFullYear()}${mes}${dia}${hora}${minuto}${segundo}${fecha.getMilliseconds()}`;
   }
 
   /**

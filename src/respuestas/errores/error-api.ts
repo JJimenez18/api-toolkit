@@ -2,7 +2,7 @@
 import { Response } from 'express';
 import { VariablesEntorno } from '../../utilerias/variables-entorno';
 import { Utilerias } from '../../utilerias/utilerias';
-import { LoggerS3 } from '../../middlewares/logger.s3';
+import { LoggerS3, TraceId } from '../../middlewares/logger.s3';
 
 /* interface IDetallesError {
   mensaje: string;
