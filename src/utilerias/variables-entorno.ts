@@ -19,9 +19,6 @@ export interface IConfiguracionLog {
 export class VariablesEntorno {
   private static instance: VariablesEntorno;
   static readonly API_NOMBRE = process.env.API_NOMBRE || '';
-  static readonly API_NOMBRE_CORTO = process.env.API_NOMBRE_CORTO || '';
-  static readonly API_LIGA_ERRORES = process.env.API_LIGA_ERRORES || '';
-  static readonly API_LIGA_DEVELOPERS = process.env.API_LIGA_DEVELOPERS || '';
   static readonly LOGGER_LEVEL = process.env.LOGGER_LEVEL || '';
   static readonly AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || '';
   static readonly AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || '';
@@ -78,15 +75,6 @@ export class VariablesEntorno {
   inicializar = (): void => {
     if (VariablesEntorno.API_NOMBRE === '') {
       throw new Error('Falta variable API_NOMBRE');
-    }
-    if (VariablesEntorno.API_NOMBRE_CORTO === '') {
-      throw new Error('Falta variable API_NOMBRE_CORTO');
-    }
-    if (VariablesEntorno.API_LIGA_ERRORES === '') {
-      throw new Error('Falta variable API_LIGA_ERRORES');
-    }
-    if (VariablesEntorno.API_LIGA_DEVELOPERS === '') {
-      throw new Error('Falta variable API_LIGA_DEVELOPERS');
     }
     this.validarNivelLogger();
   }
