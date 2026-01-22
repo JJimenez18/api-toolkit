@@ -256,10 +256,15 @@ export const validaToken = (): Array<ValidationChain> => [
     .trim()
     .notEmpty()
     .withMessage("No se ha capturado el token, favor de validar.4016"),
-]
+];
 
 export const generaRespuesta = async (
-  data: { codigoHttp: number; mensaje?: string; apiname?: string, respuesta?: unknown },
+  data: {
+    codigoHttp: number;
+    mensaje?: string;
+    apiname?: string;
+    respuesta?: unknown;
+  },
   resp: Response
 ): Promise<Response> => {
   const { codigoHttp, mensaje, respuesta, apiname } = data;
@@ -341,7 +346,6 @@ export const verificaToken = async (
   );
   return siguiente();
 };
-
 
 export const isBase64 = (str: string): boolean => {
   if (typeof str !== "string") return false;
@@ -987,7 +991,7 @@ export const generaResponse = async (
     mensaje?: string;
     resultado?: any;
     nameapi?: string;
-    codigoInterno?: number
+    codigoInterno?: number;
   }
 ): Promise<Response> => {
   const { codigoHttp, mensaje, resultado, nameapi, codigoInterno } = data;
@@ -1354,312 +1358,362 @@ const decifraCampo = (
   }
 };
 
-    /**
-     * Validador de cadenas alfanuméricas para folios o referencias con reglas específicas usando express-validator.
-     *
-     * Propósito:
-     * Genera un arreglo de ValidationChain para un campo que representa folios, referencias
-     * o identificadores similares, aplicando reglas de formato y longitud.
-     *
-     * Reglas aplicadas:
-     * - El campo debe ser una cadena (string).
-     * - No puede estar vacío si no es opcional.
-     * - No puede ser "true" ni "false" como texto.
-     * - Solo se permiten letras (A-Z, a-z), números (0-9) y signos "+" o "-".
-     * - La longitud mínima por defecto es 2 y máxima 15 caracteres.
-     *
-     * Parámetros:
-     * @param field    Nombre del campo a validar.
-     * @param location Ubicación del campo en la request: "body", "query" o "param". Por defecto "body".
-     * @param optional Indica si el campo es opcional. Por defecto `false`.
-     * @param min      Longitud mínima permitida. Por defecto `2`.
-     * @param max      Longitud máxima permitida. Por defecto `15`.
-     *
-     * Ejemplos válidos:
-     * - "123ABC"
-     * - "+Folio-01"
-     * - "A100-B"
-     *
-     * Ejemplos inválidos:
-     * - "true" o "false"
-     * - "" (vacío)
-     */
-    export const validacionCadenasFolios = (
-        field: string,
-        location: 'body' | 'query' | 'param' = 'body',
-        optional = false,
-        min: number = 2,
-        max: number = 15,
-    ): ValidationChain[] => {
-        let validator;
+/**
+ * Validador de cadenas alfanuméricas para folios o referencias con reglas específicas usando express-validator.
+ *
+ * Propósito:
+ * Genera un arreglo de ValidationChain para un campo que representa folios, referencias
+ * o identificadores similares, aplicando reglas de formato y longitud.
+ *
+ * Reglas aplicadas:
+ * - El campo debe ser una cadena (string).
+ * - No puede estar vacío si no es opcional.
+ * - No puede ser "true" ni "false" como texto.
+ * - Solo se permiten letras (A-Z, a-z), números (0-9) y signos "+" o "-".
+ * - La longitud mínima por defecto es 2 y máxima 15 caracteres.
+ *
+ * Parámetros:
+ * @param field    Nombre del campo a validar.
+ * @param location Ubicación del campo en la request: "body", "query" o "param". Por defecto "body".
+ * @param optional Indica si el campo es opcional. Por defecto `false`.
+ * @param min      Longitud mínima permitida. Por defecto `2`.
+ * @param max      Longitud máxima permitida. Por defecto `15`.
+ *
+ * Ejemplos válidos:
+ * - "123ABC"
+ * - "+Folio-01"
+ * - "A100-B"
+ *
+ * Ejemplos inválidos:
+ * - "true" o "false"
+ * - "" (vacío)
+ */
+export const validacionCadenasFolios = (
+  field: string,
+  location: "body" | "query" | "param" = "body",
+  optional = false,
+  min: number = 2,
+  max: number = 15
+): ValidationChain[] => {
+  let validator;
 
-        // seleccionar de dónde viene el campo
-        switch (location) {
-            case 'query':
-                validator = query(field);
-                break;
-            case 'param':
-                validator = param(field);
-                break;
-            case 'body':
-            default:
-                validator = body(field);
-                break;
-        }
+  // seleccionar de dónde viene el campo
+  switch (location) {
+    case "query":
+      validator = query(field);
+      break;
+    case "param":
+      validator = param(field);
+      break;
+    case "body":
+    default:
+      validator = body(field);
+      break;
+  }
 
-        // reglas base
-        validator = validator
-            .isString()
-            .withMessage(`${field} debe ser una cadena.`)
-            .bail()
-            .matches(/^(?!true$)(?!false$)(?!0+$)[A-Za-z0-9+-]+$/)
-            .withMessage(
-                `${field} solo debe contener letras, números, signos + o -, y no puede ser "true", "false" ni solo ceros.`,
-            )
-            .isLength({ min, max })
-            .withMessage(`${field} debe tener entre ${min} y ${max} caracteres.`);
+  // reglas base
+  validator = validator
+    .isString()
+    .withMessage(`${field} debe ser una cadena.`)
+    .bail()
+    .matches(/^(?!true$)(?!false$)(?!0+$)[A-Za-z0-9+-]+$/)
+    .withMessage(
+      `${field} solo debe contener letras, números, signos + o -, y no puede ser "true", "false" ni solo ceros.`
+    )
+    .isLength({ min, max })
+    .withMessage(`${field} debe tener entre ${min} y ${max} caracteres.`);
 
-        // opcionalidad y no vacío
-        if (optional) {
-            validator = validator.optional();
+  // opcionalidad y no vacío
+  if (optional) {
+    validator = validator.optional();
+  } else {
+    validator = validator
+      .notEmpty()
+      .withMessage(`${field} no puede estar vacío.`);
+  }
+
+  return [validator];
+};
+
+/**
+ * Validador genérico para campos alfabéticos sin espacios con express-validator.
+ *
+ * Reglas aplicadas:
+ * - El campo debe ser una cadena (string).
+ * - No puede estar vacío.
+ * - No puede ser la palabra "true" ni "false".
+ * - Solo se permiten letras (A-Z, a-z), guiones (`-`) y el signo `+` (sin espacios).
+ * - No se permiten acentos ni otros caracteres especiales.
+ * - La longitud mínima por defecto es 2 y máxima 15 caracteres.
+ * - Se puede configurar como opcional (por defecto es obligatorio).
+ *
+ * Parámetros:
+ * @param field    Nombre del campo a validar.
+ * @param location Ubicación del campo en la request: "body", "query" o "param".
+ * @param optional Indica si el campo es opcional. Por defecto `false`.
+ * @param min      Longitud mínima permitida. Por defecto `2`.
+ * @param max      Longitud máxima permitida. Por defecto `15`.
+ *
+ * Ejemplos válidos:
+ *  - "Juan"
+ *  - "Maria-Jose"
+ *  - "Luis+"
+ *
+ * Ejemplos inválidos:
+ *  - "Juan Perez" (espacios no permitidos)
+ *  - "María" (acentos no permitidos)
+ *  - "true" o "false"
+ *  - "" o solo espacios
+ */
+export const validaCadenaSoloLetras = (
+  field: string,
+  location: "body" | "query" | "param" = "body",
+  optional: boolean = false,
+  min: number = 2,
+  max: number = 15
+): ValidationChain[] => {
+  let validator;
+
+  // Seleccionar de dónde viene el campo
+  switch (location) {
+    case "query":
+      validator = query(field);
+      break;
+    case "param":
+      validator = param(field);
+      break;
+    case "body":
+    default:
+      validator = body(field);
+      break;
+  }
+
+  // Reglas base
+  validator = validator
+    .isString()
+    .withMessage(`${field} debe ser una cadena.`)
+    .bail()
+    .notEmpty()
+    .withMessage(`${field} no puede estar vacío.`)
+    .bail()
+    .matches(/^(?!true$)(?!false$)[A-Za-z\-\+]+$/)
+    .withMessage(
+      `${field} solo debe contener letras (A-Z, a-z), espacios, "-" o "+", y no puede ser "true" o "false".`
+    )
+    .isLength({ min, max })
+    .withMessage(`${field} debe tener entre ${min} y ${max} caracteres.`);
+
+  // Opcional
+  if (optional) {
+    validator = validator.optional(); // permite omitir
+  } else {
+    validator = validator
+      .notEmpty()
+      .withMessage(`${field} no puede estar vacío.`); // obligatorio
+  }
+
+  return [validator];
+};
+
+/**
+ * Valida que los campos numéricos de ciertas rutas en el request NO contengan valores decimales.
+ *
+ * 🔹 Funcionalidad:
+ * - Revisa el cuerpo crudo (`req.rawBody`) como string JSON.
+ * - Para cada ruta proporcionada, genera un patrón de búsqueda con regex.
+ * - Busca los valores numéricos asociados a esas rutas.
+ * - Si encuentra un número con decimales (ejemplo: "123.45"), lanza error.
+ *
+ * @param req   Objeto request que contiene el `rawBody` (cuerpo en formato string).
+ * @param rutas Lista de rutas a validar dentro del JSON (ej: ["producto.precio", "items.*.cantidad"]).
+ *
+ * @throws errorApi.peticionNoValida.parametrosNoValidos si algún campo contiene un número decimal.
+ */
+export const validaNumberConDecimales = async (
+  req: any,
+  rutas: string[]
+): Promise<void> => {
+  const raw = req.rawBody;
+
+  rutas.forEach((ruta) => {
+    // Convertir ruta en patrón regex para JSON
+    // "*" → cualquier índice de array
+    const partes = ruta.split(".");
+    let pattern = "";
+
+    partes.forEach((p, i) => {
+      if (p === "*") {
+        // Captura cualquier índice de array: [0], [1], etc.
+        pattern += "\\s*:\\s*\\[\\s*({[^}]*})";
+      } else {
+        if (i === 0) {
+          pattern += `"${p}"\\s*`;
         } else {
-            validator = validator.notEmpty().withMessage(`${field} no puede estar vacío.`);
+          pattern += `\\s*:\\s*{\\s*"${p}"`;
         }
+      }
+    });
 
-        return [validator];
-    };
+    // Regex para capturar el número (entero o decimal) en la última propiedad
+    const regex = new RegExp(
+      `"${ruta.split(".").pop()}"\\s*:\\s*([0-9]+(?:\\.[0-9]+)?)`,
+      "g"
+    );
 
-    /**
-     * Validador genérico para campos alfabéticos sin espacios con express-validator.
-     *
-     * Reglas aplicadas:
-     * - El campo debe ser una cadena (string).
-     * - No puede estar vacío.
-     * - No puede ser la palabra "true" ni "false".
-     * - Solo se permiten letras (A-Z, a-z), guiones (`-`) y el signo `+` (sin espacios).
-     * - No se permiten acentos ni otros caracteres especiales.
-     * - La longitud mínima por defecto es 2 y máxima 15 caracteres.
-     * - Se puede configurar como opcional (por defecto es obligatorio).
-     *
-     * Parámetros:
-     * @param field    Nombre del campo a validar.
-     * @param location Ubicación del campo en la request: "body", "query" o "param".
-     * @param optional Indica si el campo es opcional. Por defecto `false`.
-     * @param min      Longitud mínima permitida. Por defecto `2`.
-     * @param max      Longitud máxima permitida. Por defecto `15`.
-     *
-     * Ejemplos válidos:
-     *  - "Juan"
-     *  - "Maria-Jose"
-     *  - "Luis+"
-     *
-     * Ejemplos inválidos:
-     *  - "Juan Perez" (espacios no permitidos)
-     *  - "María" (acentos no permitidos)
-     *  - "true" o "false"
-     *  - "" o solo espacios
-     */
-    export const validaCadenaSoloLetras = (
-        field: string,
-        location: 'body' | 'query' | 'param' = 'body',
-        optional: boolean = false,
-        min: number = 2,
-        max: number = 15,
-    ): ValidationChain[] => {
-        let validator;
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(raw)) !== null) {
+      const valor = match[1];
+      if (valor.includes(".")) {
+        throw errorApi.peticionNoValida.parametrosNoValidos(
+          `${ruta} contiene un valor decimal: ${valor}`
+        );
+      }
+    }
+  });
+};
 
-        // Seleccionar de dónde viene el campo
-        switch (location) {
-            case 'query':
-                validator = query(field);
-                break;
-            case 'param':
-                validator = param(field);
-                break;
-            case 'body':
-            default:
-                validator = body(field);
-                break;
-        }
+export const validacionImporte = (
+  field: string,
+  optional = false
+): ValidationChain[] => {
+  let validator = body(field)
+    .isString()
+    .withMessage(`${field} debe ser una cadena.`)
+    .bail()
+    .matches(/^\d+\.\d{2}$/) // exactamente dos decimales
+    .withMessage(`${field} debe ser un número válido con dos decimales.`)
+    .bail()
+    .custom((value) => {
+      const num = parseFloat(value);
+      if (isNaN(num)) {
+        throw new Error(`${field} debe ser un número válido.`);
+      }
+      return true;
+    });
 
-        // Reglas base
-        validator = validator
-            .isString()
-            .withMessage(`${field} debe ser una cadena.`)
-            .bail()
-            .notEmpty()
-            .withMessage(`${field} no puede estar vacío.`)
-            .bail()
-            .matches(/^(?!true$)(?!false$)[A-Za-z\-\+]+$/)
-            .withMessage(
-                `${field} solo debe contener letras (A-Z, a-z), espacios, "-" o "+", y no puede ser "true" o "false".`,
-            )
-            .isLength({ min, max })
-            .withMessage(`${field} debe tener entre ${min} y ${max} caracteres.`);
+  if (optional) {
+    validator = validator.optional();
+  } else {
+    validator = validator
+      .notEmpty()
+      .withMessage(`${field} no puede estar vacío.`);
+  }
 
-        // Opcional
-        if (optional) {
-            validator = validator.optional(); // permite omitir
+  return [validator];
+};
+
+/**
+ * Validador de cadenas para números enteros o decimales (dinero) usando express-validator.
+ *
+ * Propósito:
+ * Genera un arreglo de ValidationChain para un campo que representa números enteros
+ * o valores monetarios, aplicando reglas de formato y longitud.
+ *
+ * Reglas aplicadas:
+ * - El campo debe ser una cadena (string).
+ * - No puede estar vacío si no es opcional.
+ * - No puede ser "true" ni "false" como texto.
+ * - Si dinero = false: solo enteros, puede ser negativo con "-", no se permiten decimales ni "+".
+ * - Si dinero = true: permite números con un solo punto decimal, signo "-" opcional, no se permite "+".
+ * - La longitud mínima por defecto es 1 y máxima 15 caracteres.
+ *
+ * Parámetros:
+ * @param field    Nombre del campo a validar.
+ * @param location Ubicación del campo en la request: "body", "query" o "param". Por defecto "body".
+ * @param optional Indica si el campo es opcional. Por defecto `false`.
+ * @param min      Longitud mínima permitida. Por defecto `1`.
+ * @param max      Longitud máxima permitida. Por defecto `15`.
+ * @param dinero   Indica si se permiten decimales (true) o solo enteros (false). Por defecto `false`.
+ */
+export const validaCadenaNumeros = (
+  field: string,
+  location: "body" | "query" | "param" = "body",
+  optional: boolean = false,
+  min: number = 0,
+  max: number = 15,
+  dinero: boolean = false
+): ValidationChain[] => {
+  let validator;
+
+  // Seleccionar de dónde viene el campo
+  switch (location) {
+    case "query":
+      validator = query(field);
+      break;
+    case "param":
+      validator = param(field);
+      break;
+    case "body":
+    default:
+      validator = body(field);
+      break;
+  }
+
+  // Regex según si es dinero o solo enteros
+  const regex = dinero
+    ? /^(?!true$)(?!false$)-?[0-9]+(\.[0-9]+)?$/ // permite un decimal
+    : /^(?!true$)(?!false$)-?[0-9]+$/; // solo enteros
+
+  // Reglas base
+  validator = validator
+    .isString()
+    .withMessage(`${field} debe ser una cadena.`)
+    .bail()
+    .matches(regex)
+    .withMessage(
+      dinero
+        ? `${field} solo debe contener números, un punto decimal opcional, puede ser negativo con '-', y no puede ser "true" o "false".`
+        : `${field} solo debe contener números enteros, puede ser negativo con '-', y no puede ser "true" o "false".`
+    )
+    .isLength({ min, max })
+    .withMessage(`${field} debe tener entre ${min} y ${max} caracteres.`);
+
+  // Opcionalidad
+  if (optional) {
+    validator = validator.optional();
+  } else {
+    validator = validator
+      .notEmpty()
+      .withMessage(`${field} no puede estar vacío.`);
+  }
+
+  return [validator];
+};
+
+export const validaHeadersV2 = (): Array<ValidationChain> => [
+  header("token")
+    .trim()
+    .notEmpty()
+    .withMessage("No se ha capturado el token, favor de validar.4016"),
+  header("x-aplicacion")
+    .trim()
+    .notEmpty()
+    .withMessage("x-aplicacion: Campo obligatorio.4012")
+    .bail(),
+  header("x-id-acceso")
+    .trim()
+    .notEmpty()
+    .withMessage("x-id-acceso: Campo obligatorio.4013")
+    .bail(),
+  /* .isInt()
+        .withMessage('x-id-acceso: Campo numerico.4015')
+        .bail(), */
+];
+
+const crearValidadorIdAcceso = (regex: RegExp) => {
+    return (req: Request, res: Response, next: NextFunction): void => {
+        const idAcceso = req.headers['x-id-acceso'];
+        
+        if (typeof idAcceso === 'string' && regex.test(idAcceso)) {
+            next();
         } else {
-            validator = validator.notEmpty().withMessage(`${field} no puede estar vacío.`); // obligatorio
+            throw errorApi.peticionNoAutorizada.peticionNoAutorizada(EMensajesError.NOT_AUTH);
         }
-
-        return [validator];
     };
+};
 
-    /**
-     * Valida que los campos numéricos de ciertas rutas en el request NO contengan valores decimales.
-     *
-     * 🔹 Funcionalidad:
-     * - Revisa el cuerpo crudo (`req.rawBody`) como string JSON.
-     * - Para cada ruta proporcionada, genera un patrón de búsqueda con regex.
-     * - Busca los valores numéricos asociados a esas rutas.
-     * - Si encuentra un número con decimales (ejemplo: "123.45"), lanza error.
-     *
-     * @param req   Objeto request que contiene el `rawBody` (cuerpo en formato string).
-     * @param rutas Lista de rutas a validar dentro del JSON (ej: ["producto.precio", "items.*.cantidad"]).
-     *
-     * @throws errorApi.peticionNoValida.parametrosNoValidos si algún campo contiene un número decimal.
-     */
-    export const validaNumberConDecimales = async (req: any, rutas: string[]): Promise<void> => {
-        const raw = req.rawBody;
-
-        rutas.forEach((ruta) => {
-            // Convertir ruta en patrón regex para JSON
-            // "*" → cualquier índice de array
-            const partes = ruta.split('.');
-            let pattern = '';
-
-            partes.forEach((p, i) => {
-                if (p === '*') {
-                    // Captura cualquier índice de array: [0], [1], etc.
-                    pattern += '\\s*:\\s*\\[\\s*({[^}]*})';
-                } else {
-                    if (i === 0) {
-                        pattern += `"${p}"\\s*`;
-                    } else {
-                        pattern += `\\s*:\\s*{\\s*"${p}"`;
-                    }
-                }
-            });
-
-            // Regex para capturar el número (entero o decimal) en la última propiedad
-            const regex = new RegExp(
-                `"${ruta.split('.').pop()}"\\s*:\\s*([0-9]+(?:\\.[0-9]+)?)`,
-                'g',
-            );
-
-            let match: RegExpExecArray | null;
-            while ((match = regex.exec(raw)) !== null) {
-                const valor = match[1];
-                if (valor.includes('.')) {
-                    throw errorApi.peticionNoValida.parametrosNoValidos(
-                        `${ruta} contiene un valor decimal: ${valor}`,
-                    );
-                }
-            }
-        });
-    };
-
-    export const validacionImporte = (field: string, optional = false): ValidationChain[] => {
-        let validator = body(field)
-            .isString()
-            .withMessage(`${field} debe ser una cadena.`)
-            .bail()
-            .matches(/^\d+\.\d{2}$/) // exactamente dos decimales
-            .withMessage(`${field} debe ser un número válido con dos decimales.`)
-            .bail()
-            .custom((value) => {
-                const num = parseFloat(value);
-                if (isNaN(num)) {
-                    throw new Error(`${field} debe ser un número válido.`);
-                }
-                return true;
-            });
-
-        if (optional) {
-            validator = validator.optional();
-        } else {
-            validator = validator.notEmpty().withMessage(`${field} no puede estar vacío.`);
-        }
-
-        return [validator];
-    };
-
-    /**
-     * Validador de cadenas para números enteros o decimales (dinero) usando express-validator.
-     *
-     * Propósito:
-     * Genera un arreglo de ValidationChain para un campo que representa números enteros
-     * o valores monetarios, aplicando reglas de formato y longitud.
-     *
-     * Reglas aplicadas:
-     * - El campo debe ser una cadena (string).
-     * - No puede estar vacío si no es opcional.
-     * - No puede ser "true" ni "false" como texto.
-     * - Si dinero = false: solo enteros, puede ser negativo con "-", no se permiten decimales ni "+".
-     * - Si dinero = true: permite números con un solo punto decimal, signo "-" opcional, no se permite "+".
-     * - La longitud mínima por defecto es 1 y máxima 15 caracteres.
-     *
-     * Parámetros:
-     * @param field    Nombre del campo a validar.
-     * @param location Ubicación del campo en la request: "body", "query" o "param". Por defecto "body".
-     * @param optional Indica si el campo es opcional. Por defecto `false`.
-     * @param min      Longitud mínima permitida. Por defecto `1`.
-     * @param max      Longitud máxima permitida. Por defecto `15`.
-     * @param dinero   Indica si se permiten decimales (true) o solo enteros (false). Por defecto `false`.
-     */
-    export const validaCadenaNumeros = (
-        field: string,
-        location: 'body' | 'query' | 'param' = 'body',
-        optional: boolean = false,
-        min: number = 0,
-        max: number = 15,
-        dinero: boolean = false,
-    ): ValidationChain[] => {
-        let validator;
-
-        // Seleccionar de dónde viene el campo
-        switch (location) {
-            case 'query':
-                validator = query(field);
-                break;
-            case 'param':
-                validator = param(field);
-                break;
-            case 'body':
-            default:
-                validator = body(field);
-                break;
-        }
-
-        // Regex según si es dinero o solo enteros
-        const regex = dinero
-            ? /^(?!true$)(?!false$)-?[0-9]+(\.[0-9]+)?$/ // permite un decimal
-            : /^(?!true$)(?!false$)-?[0-9]+$/; // solo enteros
-
-        // Reglas base
-        validator = validator
-            .isString()
-            .withMessage(`${field} debe ser una cadena.`)
-            .bail()
-            .matches(regex)
-            .withMessage(
-                dinero
-                    ? `${field} solo debe contener números, un punto decimal opcional, puede ser negativo con '-', y no puede ser "true" o "false".`
-                    : `${field} solo debe contener números enteros, puede ser negativo con '-', y no puede ser "true" o "false".`,
-            )
-            .isLength({ min, max })
-            .withMessage(`${field} debe tener entre ${min} y ${max} caracteres.`);
-
-        // Opcionalidad
-        if (optional) {
-            validator = validator.optional();
-        } else {
-            validator = validator.notEmpty().withMessage(`${field} no puede estar vacío.`);
-        }
-
-        return [validator];
-    };
+export const validaIdAccesoNumerico = crearValidadorIdAcceso(/^\d{5,20}$/);
+export const validaIdAccesoObjectId = crearValidadorIdAcceso(/^[0-9a-fA-F]{24}$/);
+export const validaIdAccesoUUID     = crearValidadorIdAcceso(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/);
 
 export * from ".";
