@@ -56,7 +56,7 @@ export function rellenaConCerosCadena(cadena: string, max: number): string {
   return cadena;
 }
 
-const calcularTiempoEjecucion = (param: {
+export const calcularTiempoEjecucion = (param: {
   inicio: number;
   final: number;
 }): number => Math.trunc(param.final - param.inicio);
@@ -1715,5 +1715,194 @@ const crearValidadorIdAcceso = (regex: RegExp) => {
 export const validaIdAccesoNumerico = crearValidadorIdAcceso(/^\d{5,20}$/);
 export const validaIdAccesoObjectId = crearValidadorIdAcceso(/^[0-9a-fA-F]{24}$/);
 export const validaIdAccesoUUID     = crearValidadorIdAcceso(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/);
+
+
+// --- CONSTANTES Y REGEX ---
+const REGEX_NUMERICO = /^\d+$/; // Solo dígitos
+const REGEX_NOMBRE = /^[A-Za-zÑñÁÉÍÓÚáéíóú\s]+$/; // Letras y espacios (incluye acentos)
+const MIN_ENCRYPTED_LENGTH = 28;
+
+// --- HELPERS (Lógica reutilizable) ---
+
+/** Verifica si un string parece ser una cadena cifrada válida (Base64 + Longitud) */
+const isEncryptedPayload = (value: string): boolean => {
+    if (!value || typeof value !== 'string') return false;
+    // Regex simple de Base64
+    const isBase64 = /^[A-Za-z0-9+/]*={0,2}$/.test(value); 
+    if (!isBase64) return false;
+    
+    try {
+        const buffer = Buffer.from(value, 'base64');
+        return buffer.length >= MIN_ENCRYPTED_LENGTH;
+    } catch {
+        return false;
+    }
+};
+
+/** Validador Custom: Falla si detecta secuencias (ej: 123, 321) */
+const checkNoSecuencias: CustomValidator = (value) => {
+    if (typeof value !== 'string') return true;
+    const cleanValue = value.replace(/\D/g, ''); 
+    if (cleanValue.length < 3) return true;
+
+    let isAscending = true;
+    let isDescending = true;
+
+    for (let i = 1; i < cleanValue.length; i++) {
+        const prev = parseInt(cleanValue[i - 1], 10);
+        const curr = parseInt(cleanValue[i], 10);
+        if (curr !== prev + 1) isAscending = false;
+        if (curr !== prev - 1) isDescending = false;
+    }
+
+    if (isAscending || isDescending) {
+        throw new Error('No debe contener secuencias numéricas (ej. 123, 321)');
+    }
+    return true;
+};
+
+// --- VALIDADORES EXPORTABLES ---
+
+/**
+ * Valida que un campo sea obligatoriamente una cadena cifrada (Base64 + Longitud mínima).
+ * Soporta validación condicional basada en la existencia o valor de otro campo.
+ *
+ * @param field - El nombre del campo a validar.
+ * @param options - Objeto de configuración opcional.
+ * * @example
+ * // 1. Validación simple (Campo obligatorio)
+ * validateEncryptedString('contrasenaNew');
+ * * // 2. Condicional: Solo validar si 'idUsuario' viene en el request
+ * validateEncryptedString('contrasenaNew', { conditionalField: 'idUsuario' });
+ * * // 3. Condicional estricta: Solo si 'tipoAuth' es igual a 1
+ * validateEncryptedString('token', { conditionalField: 'tipoAuth', conditionalValue: 1 });
+ */
+export const validateEncryptedString = (
+    field: string,
+    options: { 
+        conditionalField?: string, 
+        conditionalValue?: any 
+    } = {}
+): ValidationChain => {
+    let chain = body(field);
+
+    if (options.conditionalField) {
+        const condition = body(options.conditionalField);
+        if (options.conditionalValue !== undefined) {
+            chain = chain.if(condition.equals(options.conditionalValue));
+        } else {
+            chain = chain.if(condition.exists().notEmpty());
+        }
+    }
+
+    return chain
+        .bail()
+        .isString().withMessage(`${field} debe ser una cadena`)
+        .bail()
+        .isBase64().withMessage(`${field}: Formato inválido`)
+        .bail()
+        .custom((value) => {
+            if (!isEncryptedPayload(value)) {
+                throw new Error(`${field}: La cadena cifrada es inválida o corrupta`);
+            }
+            return true;
+        });
+};
+
+/**
+ * Valida que un campo sea TEXTO PLANO (rechaza si parece estar cifrado).
+ * Útil para descripciones, nombres o campos abiertos que no deben contener payloads cifrados.
+ *
+ * @param field - El nombre del campo.
+ * @param options - Opciones para hacerlo opcional o condicional.
+ * * @example
+ * // 1. Campo opcional (si no viene, no pasa nada; si viene, no debe ser cifrado)
+ * validatePlainTextOnly('comentarios', { isOptional: true });
+ * * // 2. Condicional: Validar 'motivo' solo si existe 'idBaja'
+ * validatePlainTextOnly('motivo', { conditionalField: 'idBaja' });
+ */
+export const validatePlainTextOnly = (
+    field: string,
+    options: { isOptional?: boolean, conditionalField?: string } = {}
+): ValidationChain => {
+    let chain = body(field);
+
+    if (options.isOptional) chain.optional();
+    if (options.conditionalField) chain.if(body(options.conditionalField).exists());
+
+    return chain
+        .isString().withMessage(`${field} debe ser cadena de texto`)
+        .custom((value) => {
+            if (isEncryptedPayload(value)) {
+                throw new Error(`El campo ${field} NO debe ser una cadena cifrada`);
+            }
+            return true;
+        });
+};
+
+/**
+ * Valida un nombre de empleado permitiendo solo letras y espacios (incluyendo acentos).
+ *
+ * @param field - El nombre del campo (ej: 'nombre', 'apellidoPaterno').
+ * @param conditionalField - (Opcional) Nombre del campo del cual depende esta validación.
+ * * @example
+ * // 1. Uso estándar
+ * validateNombreEmpleado('nombre');
+ * * // 2. Validar 'segundoNombre' solo si 'primerNombre' existe
+ * validateNombreEmpleado('segundoNombre', 'primerNombre');
+ */
+export const validateNombreEmpleado = (
+    field: string,
+    conditionalField?: string
+): ValidationChain => {
+    let chain = body(field);
+    if (conditionalField) chain.if(body(conditionalField).exists());
+
+    return chain
+        .isString().withMessage(`${field} debe ser texto`)
+        .bail()
+        .matches(REGEX_NOMBRE).withMessage(`El campo ${field} solo debe contener letras`);
+};
+
+/**
+ * Valida un número de empleado (string numérico).
+ * Permite validar opcionalmente que no contenga secuencias obvias (ej: 1234, 9876).
+ *
+ * @param field - El nombre del campo.
+ * @param options - Configuración para condicionales o chequeo de seguridad (secuencias).
+ * * @example
+ * // 1. Validación simple de solo números
+ * validateNumeroEmpleado('numeroEmpleado');
+ * * // 2. Validar solo si existe 'idEmpresa'
+ * validateNumeroEmpleado('numeroEmpleado', { conditionalField: 'idEmpresa' });
+ * * // 3. Validar seguridad (evitar secuencias como 12345) y hacer el campo opcional
+ * // (Nota: Si 'checkSecuencias' es true y no hay condicional, se asume opcional por defecto 
+ * // salvo que agregues .exists() manualmente fuera).
+ * validateNumeroEmpleado('pinTransaccion', { checkSecuencias: true });
+ */
+export const validateNumeroEmpleado = (
+    field: string,
+    options: { conditionalField?: string, checkSecuencias?: boolean } = {}
+): ValidationChain => {
+    let chain = body(field);
+    
+    if (options.conditionalField) {
+        chain.if(body(options.conditionalField).exists());
+    } else if (options.checkSecuencias) { 
+        chain.optional(); 
+    }
+
+    chain
+        .isString()
+        .bail()
+        .matches(REGEX_NUMERICO).withMessage(`El campo ${field} solo debe contener números`);
+
+    if (options.checkSecuencias) {
+        chain.custom(checkNoSecuencias);
+    }
+
+    return chain;
+};
+
 
 export * from ".";

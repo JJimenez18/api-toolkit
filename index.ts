@@ -8,3 +8,5 @@ export * from './src/models'
 export * from './src/respuestas';
 export * from './src/rutas-monitoreo';
 export * from './src/utilerias'
+export * from './src/aws'
+export * from './src/config-gral'
