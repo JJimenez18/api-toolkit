@@ -1,5 +1,5 @@
 import { LoggerS3 } from "../middlewares";
-import { obtenerParametroSSMRaw, obtenerSecretoAWS } from "./aws-utils"; // Las funciones que hicimos antes
+import { obtenerParametroSSMRaw, obtenerSecretoAWS } from "./aws-utils";
 
 export interface IVariableEntorno {
   id: number;
@@ -17,12 +17,12 @@ export interface ISSMConfig {
 export interface ISNConfig {
   CON_AURORA_DB?: string;
   CON_AURORA_DB_RO?: string;
-  // URL_DOC: string;
+  URL_DOC?: string;
+  CREDENTIALS_SISTEM?: string;
   [key: string]: string | undefined;
 }
 
 export interface IInitOptions {
-  // Usamos la nueva interfaz aquí
   ssmNames?: ISSMConfig;
   secretNames?: ISNConfig;
 }
@@ -47,24 +47,35 @@ export interface ICredencialesModel {
   password: string;
 }
 
+export interface IConfigInjection {
+  key: string;
+  valor: any;
+}
+
 export abstract class AbstractConfiguration {
   protected static logger = LoggerS3.getInstance().getLogger();
-
   private static storage: Map<string, string> = new Map();
 
+  // --- Variables de Infraestructura
   public static APP_PUERTO: string;
   public static APP_RUTA_BASE: string;
   public static URL_BASE_HERRAMIENTAS: string;
   public static CONFIGURACION_LOG: string;
   public static BD_URL_DOCUMENT: string;
+
+  // Variables de DB Globales
   public static PARAMS_DB_AURORA: IParametrosBD;
   public static PARAMS_DB_AURORA_RO: IParametrosBD;
+  public static CREDENCIALES: ICredencialesModel[];
 
+  /**
+   * Carga masiva de parámetros desde AWS (SSM y Secrets Manager) en paralelo.
+   * Guarda todo en memoria 'raw' para ser procesado después.
+   */
   public static async inicializarBase(options: IInitOptions): Promise<void> {
     this.logger.info("⚙️ Toolkit: Iniciando carga de configuración...");
 
     const promesas: Promise<void>[] = [];
-    // falta cambiar que se lean desde el process.env
 
     options.ssmNames = {
       ...options.ssmNames,
@@ -72,31 +83,28 @@ export abstract class AbstractConfiguration {
       PUERTO_DEFAULT: "/COMUN/APP_PUERTO",
     };
 
-    const SECRET_NAME = "/fusion/PARAMS_DB_AURORA";
-    const SECRET_NAME_RO = "/fusion/PARAMS_DB_AURORA_RO";
     options.secretNames = {
       ...options.secretNames,
-      CON_AURORA_DB: SECRET_NAME,
-      CON_AURORA_DB_RO: SECRET_NAME_RO,
+      CON_AURORA_DB: "/fusion/PARAMS_DB_AURORA",
+      CON_AURORA_DB_RO: "/fusion/PARAMS_DB_AURORA_RO",
     };
-    // console.log("🚀 ~ AbstractConfiguration ~ inicializarBase ~ options.secretNames:", options.secretNames)
-    // console.log(
-    //     '🚀 ~ AbstractConfiguration ~ inicializarBase ~ options.ssmNames:',
-    //     options.ssmNames,
-    // );
+
     if (options.ssmNames) {
       const lista = Object.entries(options.ssmNames);
       const p = Promise.all(
         lista.map(async ([alias, awsPath]) => {
           try {
-            const val = await obtenerParametroSSMRaw(awsPath || "");
+            if (!awsPath) return;
+            const val = await obtenerParametroSSMRaw(awsPath);
             this.storage.set(alias, val);
+            // LOG SEGURO: Solo decimos QUE cargamos, no el valor
+            this.logger.debug(`Loaded SSM: [${alias}] -> ${awsPath}`);
           } catch (e) {
             this.logger.error(`Error cargando SSM [${alias}]: ${e}`);
             throw e;
           }
         })
-      ).then(() => {}); // void return
+      ).then(() => {});
       promesas.push(p);
     }
 
@@ -105,8 +113,9 @@ export abstract class AbstractConfiguration {
       const p = Promise.all(
         lista.map(async ([alias, awsPath]) => {
           try {
-            const val = await obtenerSecretoAWS(awsPath || '');
+            const val = await obtenerSecretoAWS(awsPath || "");
             this.storage.set(alias, val);
+            this.logger.debug(`Loaded Secret: [${alias}]`);
           } catch (e) {
             this.logger.error(`Error cargando Secret [${alias}]: ${e}`);
             throw e;
@@ -115,33 +124,47 @@ export abstract class AbstractConfiguration {
       ).then(() => {});
       promesas.push(p);
     }
+
     await Promise.all(promesas);
-    await this.inicializaVariablesDefault();
+
+    this.inicializaVariablesDefault();
+
     this.logger.info(
       `✅ Toolkit: Carga completa. ${this.storage.size} variables en memoria.`
     );
   }
 
-  private static inicializaVariablesDefault = async () => {
+  /**
+   * Recibe un arreglo de configuraciones y las inyecta en la clase Padre.
+   */
+  protected static setConfig(configs: IConfigInjection[]) {
+    configs.forEach(({ key, valor }) => {
+      (AbstractConfiguration as any)[key] = valor;
+      this.logger.info(`💉 Configuración Inyectada a: ${key}`);
+    });
+  }
+
+  /**
+   * Inicializa las variables que el Toolkit necesita para arrancar (BD, Puertos default).
+   * Escribe explícitamente en AbstractConfiguration para evitar Shadowing.
+   */
+  private static inicializaVariablesDefault() {
     AbstractConfiguration.APP_PUERTO = process.env.LOCAL
       ? `${process.env.APP_PUERTO}`
       : this.getString("PUERTO_DEFAULT");
+
     AbstractConfiguration.URL_BASE_HERRAMIENTAS =
       this.getString("URL_BASE_HTAS");
     AbstractConfiguration.BD_URL_DOCUMENT = this.getString("URL_DOC");
+
     this.validarYAsignarDB("CON_AURORA_DB", "PARAMS_DB_AURORA");
     this.validarYAsignarDB("CON_AURORA_DB_RO", "PARAMS_DB_AURORA_RO");
-  };
-
-  
-  protected static setConfig(config: { rutaBase: string; puerto?: string }) {
-    AbstractConfiguration.APP_RUTA_BASE = config.rutaBase;
-
-    if (config.puerto) {
-      AbstractConfiguration.APP_PUERTO = config.puerto;
-    }
   }
 
+  /**
+   * Obtiene un valor crudo (string) del almacenamiento.
+   * Lanza error si no existe.
+   */
   protected static getString(alias: string): string {
     const val = this.storage.get(alias);
     if (val === undefined) {
@@ -152,20 +175,25 @@ export abstract class AbstractConfiguration {
     return val;
   }
 
+  /**
+   * Obtiene y parsea un JSON almacenado bajo un alias.
+   */
   protected static getJson<T>(alias: string): T {
     const val = this.getString(alias);
     try {
       return JSON.parse(val) as T;
     } catch (error) {
+      const safeLog = val ? val.substring(0, 5) + "..." : "empty";
       throw new Error(
-        `Config Error: La variable '${alias}' no es un JSON válido. Valor recibido: ${val.substring(
-          0,
-          20
-        )}...`
+        `Config Error: La variable '${alias}' no es un JSON válido. Inicio: ${safeLog}`
       );
     }
   }
 
+  /**
+   * Busca variables por descripción dentro de un JSON Array (Legacy) y las asigna a la clase (this).
+   * Útil para variables de negocio en la clase Hija.
+   */
   protected static bindProperties(aliasJson: string, properties: string[]) {
     const lista = this.getJson<any[]>(aliasJson);
 
@@ -182,15 +210,17 @@ export abstract class AbstractConfiguration {
         throw new Error(
           `Toolkit Bind: No se encontró la variable con descripción '${propName}' en '${aliasJson}'`
         );
-        // Opción B: Warning y continuar (si es opcional)
-        // this.logger.warn(`Variable ${propName} no encontrada`); return;
       }
 
-      // Asignación Dinámica: this['NOMBRE_VAR'] = 'valor'
+      // Asignación Dinámica al contexto actual (Hijo)
       (this as any)[propName] = item.valor;
+      this.logger.debug(`Variable asignada: ${propName}`);
     });
   }
 
+  /**
+   * Busca una variable por ID dentro de un JSON Array (Legacy).
+   */
   protected static getLegacyIdValue(
     aliasJsonArray: string,
     id: number
@@ -208,12 +238,15 @@ export abstract class AbstractConfiguration {
     return item.valor;
   }
 
+  /**
+   * Busca una variable por descripción (Key) dentro de un JSON Array.
+   * Retorna el valor string.
+   */
   protected static getValueByName(
     aliasJson: string,
     descriptionKey: string
   ): string {
     const lista = this.getJson<any[]>(aliasJson);
-    // console.log('🚀 ~ AbstractConfiguration ~ getValueByName ~ lista:', lista);
     const item = lista.find((i) => i.descripcion === descriptionKey);
 
     if (!item)
@@ -224,6 +257,9 @@ export abstract class AbstractConfiguration {
     return item.valor;
   }
 
+  /**
+   * Parsea un JSON y valida tipos (string/int) antes de asignarlo a 'this'.
+   */
   protected static bindValidatedJson<T>(
     ssmAlias: string,
     targetProperty: string,
@@ -236,9 +272,9 @@ export abstract class AbstractConfiguration {
         const val = data[field];
         if (typeof val !== "string" || val.trim() === "") {
           throw new Error(
-            `Config Error: El campo '${String(
+            `Config Error: '${ssmAlias}.${String(
               field
-            )}' en '${ssmAlias}' es obligatorio y debe ser texto.`
+            )}' es obligatorio (string).`
           );
         }
       });
@@ -249,40 +285,53 @@ export abstract class AbstractConfiguration {
         const val = data[field];
         if (typeof val !== "number" || !Number.isInteger(val)) {
           throw new Error(
-            `Config Error: El campo '${String(
-              field
-            )}' en '${ssmAlias}' debe ser un número entero.`
+            `Config Error: '${ssmAlias}.${String(field)}' debe ser entero.`
           );
         }
       });
     }
 
     (this as any)[targetProperty] = data;
-    this.logger.info(
-      `✅ Variable '${targetProperty}' cargada y validada desde '${ssmAlias}'`
-    );
+    this.logger.info(`✅ Variable '${targetProperty}' cargada y validada.`);
   }
 
+  /**
+   * Helper específico para Credenciales.
+   */
   protected static validarCredenciales(
     alias: string,
     targetProperty: string
   ): void {
-    this.getString(alias);
     try {
       const data = this.getJson<any[]>(
         alias
       ) as unknown as ICredencialesModel[];
       (this as any)[targetProperty] = data;
+      this.logger.debug(`Credenciales cargadas en ${targetProperty}`);
     } catch (error) {
-      throw new Error("La variable credenciales debe ser un JSON");
+      throw new Error(
+        `Error procesando credenciales '${alias}': Debe ser un JSON Array.`
+      );
     }
   }
 
+  /**
+   * Helper Privado: Valida parámetros de DB y los asigna EXPLÍCITAMENTE al Padre.
+   * Evita problemas de Shadowing y fugas de contraseñas en logs.
+   */
   private static validarYAsignarDB(
     alias: string,
     targetProp: "PARAMS_DB_AURORA" | "PARAMS_DB_AURORA_RO"
   ) {
-    const data = this.getJson<IParametrosBD>(alias);
+    // Usamos try/catch para ocultar el contenido del JSON en caso de error de parseo
+    let data: IParametrosBD;
+    try {
+      data = this.getJson<IParametrosBD>(alias);
+    } catch (e) {
+      throw new Error(
+        `Error crítico: El secreto de DB '${alias}' no es válido.`
+      );
+    }
 
     const requiredStrings = ["host", "usuario", "password"];
     const requiredInts = ["puerto"];
@@ -290,20 +339,25 @@ export abstract class AbstractConfiguration {
     requiredStrings.forEach((field) => {
       const val = (data as any)[field];
       if (typeof val !== "string" || val.trim() === "") {
-        throw new Error(`Config Error: '${alias}.${field}' es obligatorio.`);
+        throw new Error(
+          `Config DB Error: '${alias}.${field}' falta o está vacío.`
+        );
       }
     });
 
     requiredInts.forEach((field) => {
       const val = (data as any)[field];
       if (typeof val !== "number" || !Number.isInteger(val)) {
-        throw new Error(`Config Error: '${alias}.${field}' debe ser entero.`);
+        throw new Error(
+          `Config DB Error: '${alias}.${field}' debe ser entero.`
+        );
       }
     });
 
+    // Asignación Explícita al Padre
     AbstractConfiguration[targetProp] = data;
     this.logger.info(
-      `✅ Variable '${targetProp}' asignada a AbstractConfiguration`
+      `✅ ${targetProp} configurada correctamente (Infraestructura).`
     );
   }
 }

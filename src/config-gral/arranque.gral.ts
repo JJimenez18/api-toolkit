@@ -189,19 +189,31 @@ class RutasBase {
  * Inicializa las rutas base de monitoreo
  */
 export const initRutasMonitoreo = () => {
-    const app = ConfiguracionExpress.getInstance().inicializar();
-    app.use(AppRouter.getInstance());
+    // 1. Inicializamos middlewares (BodyParser, Cors, etc.)
+    ConfiguracionExpress.getInstance().inicializar();
+    
+    // 2. Obtenemos la instancia del router (pero NO hacemos app.use todavía)
+    const router = AppRouter.getInstance();
+    
+    // 3. Definimos las rutas de monitoreo en ese router
     const monitoreo = RutasMonitoreo.getInstance();
-    monitoreo.inicializar(AppRouter.getInstance());
+    monitoreo.inicializar(router);
     monitoreo.monitoreoDisponible(RutasBase.getInstance().monitoreo);
+
+    // ELIMINADO: app.use(AppRouter.getInstance());  <-- ESTO ERA EL ERROR
 };
 
 /**
  * Debe ir despues de: ConfiguracionRutas.getInstance().inicializar();
  */
-export const iniciaRutas = () => {
+export const iniciaRutasDefault = () => {
+    // 1. Definimos rutas por defecto y de error en el router
     RutaPorDefecto.getInstance().inicializar(AppRouter.getInstance());
     RutaError.getInstance().inicializar(AppRouter.getInstance());
+
+    // 2. AQUI montamos el Router una única vez bajo el prefijo configurado
+    // Esto asegura que todo lo que se agregó al router (monitoreo + negocio)
+    // pase por el flujo correcto.
     App.getInstance().use(AbstractConfiguration.APP_RUTA_BASE, AppRouter.getInstance());
 };
 

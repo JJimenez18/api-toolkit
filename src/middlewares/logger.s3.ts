@@ -13,6 +13,7 @@ import { v4 } from 'uuid';
 import { performance } from 'perf_hooks';
 import { LoggerLevelsEnum, VariablesEntorno } from '../utilerias/variables-entorno';
 import { IDetalleServicio } from '../models';
+import { AbstractConfiguration } from '../aws';
 
 const { S3StreamLogger } = require('s3-streamlogger');
 
@@ -71,11 +72,18 @@ export class LoggerS3 {
 
   static readonly CONFIGURACION_LOG = ((): IConfiguracionLog => {
     let configuracion: IConfiguracionLog = { bucket: '' };
-    if (!process.env.CONFIGURACION_LOG || `${process.env.CONFIGURACION_LOG}`.trim() === '') {
+    console.log("🚀 ~ LoggerS3 ~ AbstractConfiguration.CONFIGURACION_LOG:", AbstractConfiguration.CONFIGURACION_LOG)
+    if (!AbstractConfiguration.CONFIGURACION_LOG || `${AbstractConfiguration.CONFIGURACION_LOG}`.trim() === '') {
       return configuracion;
     }
     try {
-      configuracion = JSON.parse(`${process.env.CONFIGURACION_LOG}`.replace(/[']+/g, '"'));
+      configuracion = JSON.parse(`${AbstractConfiguration.CONFIGURACION_LOG}`.replace(/[']+/g, '"'));
+      if(!configuracion.folder){
+        console.log("🚀 ~ LoggerS3 ~ configuracion.folder esta vacio favor de validar:", configuracion.folder)
+      }
+      if(!configuracion.nameFormat){
+        console.log("🚀 ~ LoggerS3 ~ configuracion.nameFormat esta vacio favor de validar:", configuracion.nameFormat)
+      }
     } catch (error) {
       console.error('La variable configuracionLog debe ser un JSON');
     }

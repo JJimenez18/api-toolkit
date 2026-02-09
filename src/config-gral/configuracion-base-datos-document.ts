@@ -42,19 +42,19 @@ export class ConfiguracionBaseDeDatosDocument {
   inicializar = async (): Promise<void> => {
     try {
       const uri = this.fixMongoUri(AbstractConfiguration.BD_URL_DOCUMENT);
-      // console.log("🚀 ~ ConfiguracionBaseDeDatosDocument ~ AbstractConfiguration.BD_URL_DOCUMENT:", AbstractConfiguration.BD_URL_DOCUMENT)
+      mongoose.set('strictQuery', false)
       await mongoose.connect(uri, {
         tls: true,
         tlsAllowInvalidCertificates: true,
-        minPoolSize: 20, // mantiene 20 activas
-        maxPoolSize: 40,
-        maxIdleTimeMS: 60000, // cierra conexiones inactivas después de 1 minut
+        minPoolSize: 10,
+        maxPoolSize: 15,
+        maxIdleTimeMS: 30000,
+        autoIndex: true,
       });
       this.logger.info('<<<< Conexión exitosa a la base de datos >>>>');
     } catch (error) {
-      console.log("🚀 ~ ConfiguracionBaseDeDatosDocument ~ error:", error)
-      this.logger.error(`Error de conexión a la BD: ${error}`);
-      throw new Error('Error de conexión a la base de datos');
+      this.logger.error(`Error de conexión a la BD: ${JSON.stringify(error)}`);
+      throw new Error('Error de conexión ConfiguracionBaseDeDatosDocument');
     }
   }
 

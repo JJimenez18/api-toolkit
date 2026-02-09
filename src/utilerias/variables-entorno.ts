@@ -32,18 +32,6 @@ export class VariablesEntorno {
     }
     throw new Error('LOGGER_COLOR debe ser true o false. Esta variable es opcional y su valor por default es false.');
   })();
-  static readonly CONFIGURACION_LOG = (():IConfiguracionLog => {
-    let configuracion: IConfiguracionLog = { bucket: '' };
-    if (!process.env.CONFIGURACION_LOG || `${process.env.CONFIGURACION_LOG}`.trim() === '') {
-      return configuracion;
-    }
-    try {
-      configuracion = JSON.parse(`${process.env.CONFIGURACION_LOG}`.replace(/[']+/g, '"'));
-    } catch (error) {
-      console.error('La variable configuracionLog debe ser un JSON');
-    }
-    return configuracion;
-  })();
 
   // eslint-disable-next-line no-useless-constructor, @typescript-eslint/no-empty-function
   private constructor() { }

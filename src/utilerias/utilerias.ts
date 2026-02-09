@@ -1,6 +1,6 @@
 import { performance } from 'perf_hooks';
 import { parseString } from 'xml2js';
-import { TraceId } from '../middlewares';
+import { LoggerS3, TraceId } from '../middlewares';
 
 export class Utilerias {
   static generarFolio = (): string => {
@@ -142,3 +142,32 @@ export const parseXmlToJson = async (xml: any): Promise<any> =>
       }
     });
   });
+
+export const overrideConsole = () => {
+    const logger = LoggerS3.getInstance().getLogger();
+    const originalLog = console.log;
+
+    console.log = (...args: any[]) => {
+        const mensaje = args
+            .map((arg) => (typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg))
+            .join(' ');
+
+        logger.info(mensaje);
+
+        // originalLog.apply(console, args);
+    };
+
+    console.error = (...args: any[]) => {
+        const mensaje = args
+            .map((arg) => (typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg))
+            .join(' ');
+        logger.error(mensaje);
+    };
+
+    console.debug = (...args: any[]) => {
+        const mensaje = args
+            .map((arg) => (typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg))
+            .join(' ');
+        logger.debug(mensaje);
+    };
+};
