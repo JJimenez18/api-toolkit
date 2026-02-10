@@ -61,6 +61,7 @@ export abstract class AbstractConfiguration {
   public static APP_RUTA_BASE: string;
   public static URL_BASE_HERRAMIENTAS: string;
   public static CONFIGURACION_LOG: string;
+  public static S3_BUCKET_LOGS: string;
   public static BD_URL_DOCUMENT: string;
 
   // Variables de DB Globales
@@ -81,6 +82,7 @@ export abstract class AbstractConfiguration {
       ...options.ssmNames,
       URL_BASE_HTAS: "URL_DNS_HERRAMIENTAS",
       PUERTO_DEFAULT: "/COMUN/APP_PUERTO",
+      S3_BUCKET_LOGS: "/COMUN/S3_BUCKET_LOGS"
     };
 
     options.secretNames = {
@@ -156,7 +158,7 @@ export abstract class AbstractConfiguration {
     AbstractConfiguration.URL_BASE_HERRAMIENTAS =
       this.getString("URL_BASE_HTAS");
     AbstractConfiguration.BD_URL_DOCUMENT = this.getString("URL_DOC");
-
+    AbstractConfiguration.S3_BUCKET_LOGS = this.getString("S3_BUCKET_LOGS");
     this.validarYAsignarDB("CON_AURORA_DB", "PARAMS_DB_AURORA");
     this.validarYAsignarDB("CON_AURORA_DB_RO", "PARAMS_DB_AURORA_RO");
   }
