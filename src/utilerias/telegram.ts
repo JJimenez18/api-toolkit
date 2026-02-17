@@ -1,5 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
-import {LoggerS3, TraceId} from '../middlewares/logger.s3';
+import { TraceId } from '../middlewares/TraceId';
+import { LoggerS3 } from '../middlewares/LoggerS3';
 
 const tokenDefault = '5137845409:AAFlhqU7RzV02OnTu1Yj-n3XhL18Q6ZBfkQ';
 const idGrupoDefault = process.env.ID_TELEGRAM || '-969215861';

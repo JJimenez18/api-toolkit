@@ -1,5 +1,5 @@
 /* eslint-disable max-len */
-import { VariablesEntorno } from "../../utilerias";
+import { AbstractConfiguration } from "../../aws";
 import {
   DetallesEntrada,
   ErrorApi,
@@ -50,7 +50,7 @@ export const objErrorPeticionNoValida = (
   desconocido: (
     detalles: DetallesEntrada,
     codigoInterno?: number,
-    apiName: string = VariablesEntorno.API_NOMBRE,
+    apiName: string = AbstractConfiguration.API_NOMBRE,
     transformador?: ITransformador
   ) =>
     new ErrorApi(
@@ -64,7 +64,7 @@ export const objErrorPeticionNoValida = (
   tokenNoEncontrado: (
     detalles: DetallesEntrada,
     codigoInterno?: number,
-    apiName: string = VariablesEntorno.API_NOMBRE,
+    apiName: string = AbstractConfiguration.API_NOMBRE,
     transformador?: ITransformador
   ) =>
     new ErrorApi(
@@ -78,7 +78,7 @@ export const objErrorPeticionNoValida = (
   tokenNoValido: (
     detalles: DetallesEntrada,
     codigoInterno?: number,
-    apiName: string = VariablesEntorno.API_NOMBRE,
+    apiName: string = AbstractConfiguration.API_NOMBRE,
     transformador?: ITransformador
   ) =>
     new ErrorApi(
@@ -92,7 +92,7 @@ export const objErrorPeticionNoValida = (
   faltanParametros: (
     detalles: DetallesEntrada,
     codigoInterno?: number,
-    apiName: string = VariablesEntorno.API_NOMBRE,
+    apiName: string = AbstractConfiguration.API_NOMBRE,
     transformador?: ITransformador
   ) =>
     new ErrorApi(
@@ -106,7 +106,7 @@ export const objErrorPeticionNoValida = (
   parametrosNoValidos: (
     detalles: DetallesEntrada,
     codigoInterno?: number,
-    apiName: string = VariablesEntorno.API_NOMBRE,
+    apiName: string = AbstractConfiguration.API_NOMBRE,
     transformador?: ITransformador
   ) =>
     new ErrorApi(
@@ -120,7 +120,7 @@ export const objErrorPeticionNoValida = (
   peticionNoAutorizada: (
     detalles: DetallesEntrada,
     codigoInterno?: number,
-    apiName: string = VariablesEntorno.API_NOMBRE,
+    apiName: string = AbstractConfiguration.API_NOMBRE,
     transformador?: ITransformador
   ) =>
     new ErrorApi(
@@ -134,7 +134,7 @@ export const objErrorPeticionNoValida = (
   peticionInvalida: (
     detalles: DetallesEntrada,
     codigoInterno?: number,
-    apiName: string = VariablesEntorno.API_NOMBRE,
+    apiName: string = AbstractConfiguration.API_NOMBRE,
     transformador?: ITransformador
   ) =>
     new ErrorApi(

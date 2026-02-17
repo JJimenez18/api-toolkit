@@ -8,7 +8,7 @@ import {
   RespuestaExitoApi,
   RespuestaExitoApiCodigos,
 } from "../respuestas/exito/exito";
-import { LoggerS3 } from "../middlewares/logger.s3";
+import { LoggerS3 } from "../middlewares/LoggerS3";
 
 /* import {
   ErrorServicioNoDisponible,

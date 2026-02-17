@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { Utilerias } from '../utilerias/utilerias';
-import { LoggerS3 } from '../middlewares/logger.s3';
 import { EMensajesError } from '../enum/enums';
+import { LoggerS3 } from '../middlewares/LoggerS3';
 
 export interface IRespApi {
   mensaje: string;

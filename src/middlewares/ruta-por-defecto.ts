@@ -1,7 +1,7 @@
 /* eslint-disable linebreak-style */
 import express, { Request, Response } from 'express';
 import { errorApi } from '../respuestas/errores/errores-api';
-import { LoggerS3 } from './logger.s3';
+import { LoggerS3 } from './LoggerS3';
 /* import {
   ErrorRecursoNoEncontrado,
   ErrorRecursoNoEncontradoCodigos,

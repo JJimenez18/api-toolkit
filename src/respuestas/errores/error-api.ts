@@ -1,9 +1,8 @@
 /* eslint-disable max-len */
 import { Response } from 'express';
-import { VariablesEntorno } from '../../utilerias/variables-entorno';
 import { Utilerias } from '../../utilerias/utilerias';
-import { LoggerS3, TraceId } from '../../middlewares/logger.s3';
-
+import { LoggerS3 } from '../../middlewares/LoggerS3';
+import { AbstractConfiguration } from '../../aws';
 /* interface IDetallesError {
   mensaje: string;
 } */
@@ -67,7 +66,7 @@ export class ErrorApi extends Error {
   //   respuesta, this.getCodigoHttp(), this.codigoInterno, this.mensaje, this.detalles,
   // );
   public responder = (respuesta: Response): Response<unknown> => {
-    const codigoError = `${this.codigoHttp}.${this.apiName || VariablesEntorno.API_NOMBRE}.${this.errorInterno}`;
+    const codigoError = `${this.codigoHttp}.${this.apiName || AbstractConfiguration.API_NOMBRE}.${this.errorInterno}`;
     const respuestaApi = {
       codigo: codigoError,
       mensaje: this.mensaje,

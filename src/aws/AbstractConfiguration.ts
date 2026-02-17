@@ -62,7 +62,11 @@ export abstract class AbstractConfiguration {
   public static URL_BASE_HERRAMIENTAS: string;
   public static CONFIGURACION_LOG: string;
   public static S3_BUCKET_LOGS: string;
+  public static NOMBRE_BUCKETSHT: string;
   public static BD_URL_DOCUMENT: string;
+  public static API_NOMBRE: string;
+  public static TOKEN_KEY_PUBLICA: string;
+  public static ID_TELEGRAM: string;
 
   // Variables de DB Globales
   public static PARAMS_DB_AURORA: IParametrosBD;
@@ -74,7 +78,7 @@ export abstract class AbstractConfiguration {
    * Guarda todo en memoria 'raw' para ser procesado después.
    */
   public static async inicializarBase(options: IInitOptions): Promise<void> {
-    this.logger.info("⚙️ Toolkit: Iniciando carga de configuración...");
+    this.logger.info("Toolkit: Iniciando carga de configuración...");
 
     const promesas: Promise<void>[] = [];
 
@@ -82,13 +86,17 @@ export abstract class AbstractConfiguration {
       ...options.ssmNames,
       URL_BASE_HTAS: "URL_DNS_HERRAMIENTAS",
       PUERTO_DEFAULT: "/COMUN/APP_PUERTO",
-      S3_BUCKET_LOGS: "/COMUN/S3_BUCKET_LOGS"
+      S3_BUCKET_LOGS: "/COMUN/S3_BUCKET_LOGS",
+      TOKEN_KEY_PUBLICA: "LLAVE_PRIVADA_JWT_HTAS",
+      BUCKET_HTAS: "/HABILITACION/BUCKET_HTAS",
+      ID_TELEGRAM: "ID_TELEGRAM"
     };
 
     options.secretNames = {
       ...options.secretNames,
       CON_AURORA_DB: "/fusion/PARAMS_DB_AURORA",
       CON_AURORA_DB_RO: "/fusion/PARAMS_DB_AURORA_RO",
+      URL_DOC: "DOCUMENTDB_HABILITACION",
     };
 
     if (options.ssmNames) {
@@ -132,19 +140,19 @@ export abstract class AbstractConfiguration {
     this.inicializaVariablesDefault();
 
     this.logger.info(
-      `✅ Toolkit: Carga completa. ${this.storage.size} variables en memoria.`
+      `Toolkit: Carga completa. ${this.storage.size} variables en memoria.`
     );
   }
 
   /**
    * Recibe un arreglo de configuraciones y las inyecta en la clase Padre.
    */
-  protected static setConfig(configs: IConfigInjection[]) {
+  /* protected static setConfig(configs: IConfigInjection[]) {
     configs.forEach(({ key, valor }) => {
       (AbstractConfiguration as any)[key] = valor;
-      this.logger.info(`💉 Configuración Inyectada a: ${key}`);
+      this.logger.info(`Configuración Inyectada a: ${key}`);
     });
-  }
+  } */
 
   /**
    * Inicializa las variables que el Toolkit necesita para arrancar (BD, Puertos default).
@@ -158,6 +166,10 @@ export abstract class AbstractConfiguration {
     AbstractConfiguration.URL_BASE_HERRAMIENTAS =
       this.getString("URL_BASE_HTAS");
     AbstractConfiguration.BD_URL_DOCUMENT = this.getString("URL_DOC");
+    AbstractConfiguration.NOMBRE_BUCKETSHT = this.getString("BUCKET_HTAS");
+    AbstractConfiguration.ID_TELEGRAM = this.getString("ID_TELEGRAM");
+    AbstractConfiguration.TOKEN_KEY_PUBLICA =
+      this.getString("TOKEN_KEY_PUBLICA");
     AbstractConfiguration.S3_BUCKET_LOGS = this.getString("S3_BUCKET_LOGS");
     this.validarYAsignarDB("CON_AURORA_DB", "PARAMS_DB_AURORA");
     this.validarYAsignarDB("CON_AURORA_DB_RO", "PARAMS_DB_AURORA_RO");
@@ -197,7 +209,7 @@ export abstract class AbstractConfiguration {
    * Útil para variables de negocio en la clase Hija.
    */
   protected static bindProperties(aliasJson: string, properties: string[]) {
-    const lista = this.getJson<any[]>(aliasJson);
+    const lista = this.getJson<IVariableEntorno[]>(aliasJson);
 
     if (!Array.isArray(lista)) {
       throw new Error(
@@ -216,6 +228,34 @@ export abstract class AbstractConfiguration {
 
       // Asignación Dinámica al contexto actual (Hijo)
       (this as any)[propName] = item.valor;
+      this.logger.debug(`Variable asignada: ${propName}`);
+    });
+  }
+
+  /**
+   * Busca variables por descripción dentro de un JSON Array (Legacy) y las asigna a la clase padre (AbstractConfiguration).
+   */
+  protected static setAbstractConfiguration(
+    aliasJson: string,
+    properties: string[]
+  ) {
+    const lista = this.getJson<IVariableEntorno[]>(aliasJson);
+
+    if (!Array.isArray(lista)) {
+      throw new Error(
+        `Toolkit: El alias '${aliasJson}' no es un array válido.`
+      );
+    }
+
+    properties.forEach((propName) => {
+      const item = lista.find((i) => i.descripcion === propName);
+
+      if (!item) {
+        throw new Error(
+          `Toolkit setConfigAbstractConfiguration: No se encontró la variable con descripción '${propName}' en '${aliasJson}'`
+        );
+      }
+      (AbstractConfiguration as any)[propName] = item.valor;
       this.logger.debug(`Variable asignada: ${propName}`);
     });
   }
@@ -294,7 +334,7 @@ export abstract class AbstractConfiguration {
     }
 
     (this as any)[targetProperty] = data;
-    this.logger.info(`✅ Variable '${targetProperty}' cargada y validada.`);
+    this.logger.info(`Variable '${targetProperty}' cargada y validada.`);
   }
 
   /**
@@ -359,7 +399,7 @@ export abstract class AbstractConfiguration {
     // Asignación Explícita al Padre
     AbstractConfiguration[targetProp] = data;
     this.logger.info(
-      `✅ ${targetProp} configurada correctamente (Infraestructura).`
+      `${targetProp} configurada correctamente (Infraestructura).`
     );
   }
 }

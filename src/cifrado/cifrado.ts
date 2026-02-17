@@ -701,4 +701,17 @@ ${llave}
   }
 };
 
+export const cifrarCampoSiAplica = (
+    valor: string,
+    // claveCampo: string,
+    llavePublica: string,
+    cifrarDatos = true
+  ): string => {
+    if (!cifrarDatos) {
+      // console.log('🚀 ~ cifrarCampoSiAplica ~ claveCampo:', claveCampo, valor);
+      return valor;
+    }
+    return Cifrado.getInstance().validaCadenaRSA(valor, llavePublica);
+  };
+
 export * from '.';

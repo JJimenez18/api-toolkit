@@ -4,7 +4,7 @@ import 'express-async-errors';
 import { ValidadorErroresParametros } from '../middlewares/validador-errores-parametros';
 import { ControladorMonitoreo } from './controlador-monitoreo';
 import { ValidadorRutasMonitoreo } from './validadores-rutas-monitoreo';
-import { LoggerS3 } from '../middlewares/logger.s3';
+import { LoggerS3 } from '../middlewares/LoggerS3';
 
 export class RutasMonitoreo {
   private readonly logger = LoggerS3.getInstance().getLogger();

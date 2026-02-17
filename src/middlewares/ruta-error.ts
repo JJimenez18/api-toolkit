@@ -3,7 +3,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import 'express-async-errors';
 // import { ErrorApi } from '../respuestas-api';
 import { ErrorApi, errorApi } from '../respuestas';
-import { LoggerS3 } from './logger.s3';
+import { LoggerS3 } from './LoggerS3';
 // import { ErrorServidor, ErrorServidorCodigos } from '../respuestas-api/errores/error-interno-servidor';
 
 export class RutaError {

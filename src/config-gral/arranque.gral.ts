@@ -215,6 +215,7 @@ export const iniciaRutasDefault = () => {
     // Esto asegura que todo lo que se agregó al router (monitoreo + negocio)
     // pase por el flujo correcto.
     App.getInstance().use(AbstractConfiguration.APP_RUTA_BASE, AppRouter.getInstance());
+    RutaPorDefecto.getInstance().inicializar(App.getInstance());
 };
 
 /**

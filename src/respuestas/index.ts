@@ -7,3 +7,5 @@ export * from './errores/error-interno-servidor';
 export * from './errores/error-peticion-no-valida';
 export * from './errores/error-recurso-no-encontrado';
 export * from './errores/error-servicio-no-disponible';
+export * from './errores/builder.error';
+export * from './errores/builder.exception';

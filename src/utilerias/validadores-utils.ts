@@ -11,11 +11,12 @@ import {
 import { errorApi, exitoApi } from "../respuestas";
 import { EMensajesError, SistemasEnum } from "../enum/enums";
 import jwt from "jsonwebtoken";
-import { LoggerS3 } from "../middlewares/logger.s3";
 import { performance } from "perf_hooks";
 import { IDetalleServicio } from "../models/model";
 import { Cifrado } from "../cifrado";
 import { VariablesEntorno } from "./variables-entorno";
+import { LoggerS3 } from "../middlewares/LoggerS3";
+import { AbstractConfiguration } from "../aws";
 
 export const formatoFecha =
   /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d{3})?$/;
@@ -24,7 +25,6 @@ export const msjFormatoFecha = "YYYY-MM-DDTHH:mm:ss.sss";
 /* export const formatoFecha = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d{3}[zZ])?$/;
 export const msjFormatoFecha = 'YYYY-MM-DDTHH:mm:ss o YYYY-MM-DDTHH:mm:ss.sss'; */
 
-const logger = LoggerS3.getInstance().getLogger();
 
 export const validarCampoFecha = (
   validation: ValidationChain,
@@ -91,17 +91,17 @@ export const calculaTiempo = (
     : [detalleServicio];
   switch (tipolog) {
     case LoggerLevelsEnum.ERROR:
-      logger.error(mensaje, detServicio);
+      LoggerS3.getInstance().getLogger().error(mensaje, detServicio);
       break;
     case LoggerLevelsEnum.WARN:
-      logger.warn(mensaje, detServicio);
+      LoggerS3.getInstance().getLogger().warn(mensaje, detServicio);
       break;
     case LoggerLevelsEnum.INFO:
-      logger.info(mensaje, detServicio);
+      LoggerS3.getInstance().getLogger().info(mensaje, detServicio);
       break;
     // case LoggerLevelsEnum.DEBUG:
     default:
-      logger.debug(mensaje, detServicio);
+      LoggerS3.getInstance().getLogger().debug(mensaje, detServicio);
       break;
   }
   return [detalleServicio];
@@ -313,16 +313,16 @@ export const verificaToken = async (
   if ([1].includes(istesting)) {
     return siguiente();
   }
-  if (!process.env.TOKEN_KEY_PUBLICA) {
+  if (!AbstractConfiguration.TOKEN_KEY_PUBLICA) {
     throw errorApi.peticionNoAutorizada.tokenNoValido(
       "El campo TOKEN_KEY_PUBLICA, no es valida, favor de validar",
       4101,
-      (solicitud as any).apiName
+      (solicitud as any).apiName || AbstractConfiguration.API_NOMBRE
     );
   }
   const llaveToken = [
     "-----BEGIN PUBLIC KEY-----",
-    process.env.TOKEN_KEY_PUBLICA,
+    AbstractConfiguration.TOKEN_KEY_PUBLICA,
     "-----END PUBLIC KEY-----",
   ]
     .join("\n")
@@ -333,7 +333,7 @@ export const verificaToken = async (
     { algorithms: ["RS256"] },
     (err) => {
       if (err) {
-        logger.debug(
+        LoggerS3.getInstance().getLogger().debug(
           `El token no es valido, favor de solicitar uno nuevo ${err}`
         );
         throw errorApi.peticionNoAutorizada.tokenNoValido(
@@ -656,7 +656,7 @@ const aplicarDescifrado = (
               accesoPrivado || ""
             );
         if (resultado.error) {
-          logger.info(
+          LoggerS3.getInstance().getLogger().info(
             `Problema al descifrar ${parte} con idAcceso proporcionado`
           );
           throw errorApi.peticionNoAutorizada.peticionNoAutorizada(
