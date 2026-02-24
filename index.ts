@@ -1,18 +1,33 @@
 import { AsyncLocalStorage } from "async_hooks";
-import mongoose, { Document, Schema, Model, Types, ConnectOptions } from "mongoose";
+import mongooseInstance from "mongoose";
+import expressInstance from "express";
 import axios, { AxiosRequestConfig } from "axios";
 
 //VariablesEntorno.getInstance().inicializar();
 
 export const asyncLocalStorage = new AsyncLocalStorage();
 
-export { mongoose };
-export { Document, Schema, Model, Types, ConnectOptions };
+export const mongoose = mongooseInstance;
+export const express = expressInstance;
+
+
+export { Document, Schema, Model, Types, ConnectOptions } from "mongoose";
 
 export const ObjectId = mongoose.Types.ObjectId;
 export const isValidObjectId = mongoose.isValidObjectId;
 
 export { axios, AxiosRequestConfig };
+
+export { Request, Response, NextFunction, Router } from "express";
+
+export {
+  query,
+  body,
+  param,
+  ValidationChain,
+  header,
+  validationResult,
+} from "express-validator";
 
 export * from "./src/aws";
 export * from "./src/middlewares";

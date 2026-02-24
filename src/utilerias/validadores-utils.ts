@@ -13,7 +13,7 @@ import { EMensajesError, SistemasEnum } from "../enum/enums";
 import jwt from "jsonwebtoken";
 import { performance } from "perf_hooks";
 import { IDetalleServicio } from "../models/model";
-import { Cifrado } from "../cifrado";
+import { Cifrado, decifrarRsa_pkcs1 } from "../cifrado";
 import { VariablesEntorno } from "./variables-entorno";
 import { LoggerS3 } from "../middlewares/LoggerS3";
 import { AbstractConfiguration } from "../aws";
@@ -24,7 +24,6 @@ export const msjFormatoFecha = "YYYY-MM-DDTHH:mm:ss.sss";
 
 /* export const formatoFecha = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d{3}[zZ])?$/;
 export const msjFormatoFecha = 'YYYY-MM-DDTHH:mm:ss o YYYY-MM-DDTHH:mm:ss.sss'; */
-
 
 export const validarCampoFecha = (
   validation: ValidationChain,
@@ -333,9 +332,9 @@ export const verificaToken = async (
     { algorithms: ["RS256"] },
     (err) => {
       if (err) {
-        LoggerS3.getInstance().getLogger().debug(
-          `El token no es valido, favor de solicitar uno nuevo ${err}`
-        );
+        LoggerS3.getInstance()
+          .getLogger()
+          .debug(`El token no es valido, favor de solicitar uno nuevo ${err}`);
         throw errorApi.peticionNoAutorizada.tokenNoValido(
           "El token no es valido, favor de solicitar uno nuevo",
           4104,
@@ -656,9 +655,9 @@ const aplicarDescifrado = (
               accesoPrivado || ""
             );
         if (resultado.error) {
-          LoggerS3.getInstance().getLogger().info(
-            `Problema al descifrar ${parte} con idAcceso proporcionado`
-          );
+          LoggerS3.getInstance()
+            .getLogger()
+            .info(`Problema al descifrar ${parte} con idAcceso proporcionado`);
           throw errorApi.peticionNoAutorizada.peticionNoAutorizada(
             EMensajesError.KEY_ERROR,
             4109
@@ -1340,7 +1339,8 @@ const decifraCampo = (
           ? Cifrado.getInstance().validaCadenaRSA(obj[parte], llave, oaep)
           : oaep
           ? Cifrado.getInstance().descifrarRSAOAEP(obj[parte], llave).valor
-          : Cifrado.getInstance().descifraRSAPSK1(obj[parte], llave).valor;
+          : // Cifrado.getInstance().descifraRSAPSK1(obj[parte], llave).valor;
+            decifrarRsa_pkcs1(obj[parte], llave).valor;
       } catch (e) {
         console.log(
           "🚀 ~ SolicitudesController ~ decifraCampo ~  obj[parte]:",
@@ -1701,21 +1701,25 @@ export const validaHeadersV2 = (): Array<ValidationChain> => [
 ];
 
 const crearValidadorIdAcceso = (regex: RegExp) => {
-    return (req: Request, res: Response, next: NextFunction): void => {
-        const idAcceso = req.headers['x-id-acceso'];
-        
-        if (typeof idAcceso === 'string' && regex.test(idAcceso)) {
-            next();
-        } else {
-            throw errorApi.peticionNoAutorizada.peticionNoAutorizada(EMensajesError.NOT_AUTH);
-        }
-    };
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const idAcceso = req.headers["x-id-acceso"];
+
+    if (typeof idAcceso === "string" && regex.test(idAcceso)) {
+      next();
+    } else {
+      throw errorApi.peticionNoAutorizada.peticionNoAutorizada(
+        EMensajesError.NOT_AUTH
+      );
+    }
+  };
 };
 
 export const validaIdAccesoNumerico = crearValidadorIdAcceso(/^\d{5,20}$/);
-export const validaIdAccesoObjectId = crearValidadorIdAcceso(/^[0-9a-fA-F]{24}$/);
-export const validaIdAccesoUUID     = crearValidadorIdAcceso(/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/);
-
+export const validaIdAccesoObjectId =
+  crearValidadorIdAcceso(/^[0-9a-fA-F]{24}$/);
+export const validaIdAccesoUUID = crearValidadorIdAcceso(
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+);
 
 // --- CONSTANTES Y REGEX ---
 const REGEX_NUMERICO = /^\d+$/; // Solo dígitos
@@ -1726,39 +1730,39 @@ const MIN_ENCRYPTED_LENGTH = 28;
 
 /** Verifica si un string parece ser una cadena cifrada válida (Base64 + Longitud) */
 const isEncryptedPayload = (value: string): boolean => {
-    if (!value || typeof value !== 'string') return false;
-    // Regex simple de Base64
-    const isBase64 = /^[A-Za-z0-9+/]*={0,2}$/.test(value); 
-    if (!isBase64) return false;
-    
-    try {
-        const buffer = Buffer.from(value, 'base64');
-        return buffer.length >= MIN_ENCRYPTED_LENGTH;
-    } catch {
-        return false;
-    }
+  if (!value || typeof value !== "string") return false;
+  // Regex simple de Base64
+  const isBase64 = /^[A-Za-z0-9+/]*={0,2}$/.test(value);
+  if (!isBase64) return false;
+
+  try {
+    const buffer = Buffer.from(value, "base64");
+    return buffer.length >= MIN_ENCRYPTED_LENGTH;
+  } catch {
+    return false;
+  }
 };
 
 /** Validador Custom: Falla si detecta secuencias (ej: 123, 321) */
 const checkNoSecuencias: CustomValidator = (value) => {
-    if (typeof value !== 'string') return true;
-    const cleanValue = value.replace(/\D/g, ''); 
-    if (cleanValue.length < 3) return true;
+  if (typeof value !== "string") return true;
+  const cleanValue = value.replace(/\D/g, "");
+  if (cleanValue.length < 3) return true;
 
-    let isAscending = true;
-    let isDescending = true;
+  let isAscending = true;
+  let isDescending = true;
 
-    for (let i = 1; i < cleanValue.length; i++) {
-        const prev = parseInt(cleanValue[i - 1], 10);
-        const curr = parseInt(cleanValue[i], 10);
-        if (curr !== prev + 1) isAscending = false;
-        if (curr !== prev - 1) isDescending = false;
-    }
+  for (let i = 1; i < cleanValue.length; i++) {
+    const prev = parseInt(cleanValue[i - 1], 10);
+    const curr = parseInt(cleanValue[i], 10);
+    if (curr !== prev + 1) isAscending = false;
+    if (curr !== prev - 1) isDescending = false;
+  }
 
-    if (isAscending || isDescending) {
-        throw new Error('No debe contener secuencias numéricas (ej. 123, 321)');
-    }
-    return true;
+  if (isAscending || isDescending) {
+    throw new Error("No debe contener secuencias numéricas (ej. 123, 321)");
+  }
+  return true;
 };
 
 // --- VALIDADORES EXPORTABLES ---
@@ -1778,35 +1782,37 @@ const checkNoSecuencias: CustomValidator = (value) => {
  * validateEncryptedString('token', { conditionalField: 'tipoAuth', conditionalValue: 1 });
  */
 export const validateEncryptedString = (
-    field: string,
-    options: { 
-        conditionalField?: string, 
-        conditionalValue?: any 
-    } = {}
+  field: string,
+  options: {
+    conditionalField?: string;
+    conditionalValue?: any;
+  } = {}
 ): ValidationChain => {
-    let chain = body(field);
+  let chain = body(field);
 
-    if (options.conditionalField) {
-        const condition = body(options.conditionalField);
-        if (options.conditionalValue !== undefined) {
-            chain = chain.if(condition.equals(options.conditionalValue));
-        } else {
-            chain = chain.if(condition.exists().notEmpty());
-        }
+  if (options.conditionalField) {
+    const condition = body(options.conditionalField);
+    if (options.conditionalValue !== undefined) {
+      chain = chain.if(condition.equals(options.conditionalValue));
+    } else {
+      chain = chain.if(condition.exists().notEmpty());
     }
+  }
 
-    return chain
-        .bail()
-        .isString().withMessage(`${field} debe ser una cadena`)
-        .bail()
-        .isBase64().withMessage(`${field}: Formato inválido`)
-        .bail()
-        .custom((value) => {
-            if (!isEncryptedPayload(value)) {
-                throw new Error(`${field}: La cadena cifrada es inválida o corrupta`);
-            }
-            return true;
-        });
+  return chain
+    .bail()
+    .isString()
+    .withMessage(`${field} debe ser una cadena`)
+    .bail()
+    .isBase64()
+    .withMessage(`${field}: Formato inválido`)
+    .bail()
+    .custom((value) => {
+      if (!isEncryptedPayload(value)) {
+        throw new Error(`${field}: La cadena cifrada es inválida o corrupta`);
+      }
+      return true;
+    });
 };
 
 /**
@@ -1822,22 +1828,24 @@ export const validateEncryptedString = (
  * validatePlainTextOnly('motivo', { conditionalField: 'idBaja' });
  */
 export const validatePlainTextOnly = (
-    field: string,
-    options: { isOptional?: boolean, conditionalField?: string } = {}
+  field: string,
+  options: { isOptional?: boolean; conditionalField?: string } = {}
 ): ValidationChain => {
-    let chain = body(field);
+  let chain = body(field);
 
-    if (options.isOptional) chain.optional();
-    if (options.conditionalField) chain.if(body(options.conditionalField).exists());
+  if (options.isOptional) chain.optional();
+  if (options.conditionalField)
+    chain.if(body(options.conditionalField).exists());
 
-    return chain
-        .isString().withMessage(`${field} debe ser cadena de texto`)
-        .custom((value) => {
-            if (isEncryptedPayload(value)) {
-                throw new Error(`El campo ${field} NO debe ser una cadena cifrada`);
-            }
-            return true;
-        });
+  return chain
+    .isString()
+    .withMessage(`${field} debe ser cadena de texto`)
+    .custom((value) => {
+      if (isEncryptedPayload(value)) {
+        throw new Error(`El campo ${field} NO debe ser una cadena cifrada`);
+      }
+      return true;
+    });
 };
 
 /**
@@ -1852,16 +1860,18 @@ export const validatePlainTextOnly = (
  * validateNombreEmpleado('segundoNombre', 'primerNombre');
  */
 export const validateNombreEmpleado = (
-    field: string,
-    conditionalField?: string
+  field: string,
+  conditionalField?: string
 ): ValidationChain => {
-    let chain = body(field);
-    if (conditionalField) chain.if(body(conditionalField).exists());
+  let chain = body(field);
+  if (conditionalField) chain.if(body(conditionalField).exists());
 
-    return chain
-        .isString().withMessage(`${field} debe ser texto`)
-        .bail()
-        .matches(REGEX_NOMBRE).withMessage(`El campo ${field} solo debe contener letras`);
+  return chain
+    .isString()
+    .withMessage(`${field} debe ser texto`)
+    .bail()
+    .matches(REGEX_NOMBRE)
+    .withMessage(`El campo ${field} solo debe contener letras`);
 };
 
 /**
@@ -1876,33 +1886,33 @@ export const validateNombreEmpleado = (
  * * // 2. Validar solo si existe 'idEmpresa'
  * validateNumeroEmpleado('numeroEmpleado', { conditionalField: 'idEmpresa' });
  * * // 3. Validar seguridad (evitar secuencias como 12345) y hacer el campo opcional
- * // (Nota: Si 'checkSecuencias' es true y no hay condicional, se asume opcional por defecto 
+ * // (Nota: Si 'checkSecuencias' es true y no hay condicional, se asume opcional por defecto
  * // salvo que agregues .exists() manualmente fuera).
  * validateNumeroEmpleado('pinTransaccion', { checkSecuencias: true });
  */
 export const validateNumeroEmpleado = (
-    field: string,
-    options: { conditionalField?: string, checkSecuencias?: boolean } = {}
+  field: string,
+  options: { conditionalField?: string; checkSecuencias?: boolean } = {}
 ): ValidationChain => {
-    let chain = body(field);
-    
-    if (options.conditionalField) {
-        chain.if(body(options.conditionalField).exists());
-    } else if (options.checkSecuencias) { 
-        chain.optional(); 
-    }
+  let chain = body(field);
 
-    chain
-        .isString()
-        .bail()
-        .matches(REGEX_NUMERICO).withMessage(`El campo ${field} solo debe contener números`);
+  if (options.conditionalField) {
+    chain.if(body(options.conditionalField).exists());
+  } else if (options.checkSecuencias) {
+    chain.optional();
+  }
 
-    if (options.checkSecuencias) {
-        chain.custom(checkNoSecuencias);
-    }
+  chain
+    .isString()
+    .bail()
+    .matches(REGEX_NUMERICO)
+    .withMessage(`El campo ${field} solo debe contener números`);
 
-    return chain;
+  if (options.checkSecuencias) {
+    chain.custom(checkNoSecuencias);
+  }
+
+  return chain;
 };
-
 
 export * from ".";

@@ -89,7 +89,7 @@ export abstract class AbstractConfiguration {
       S3_BUCKET_LOGS: "/COMUN/S3_BUCKET_LOGS",
       TOKEN_KEY_PUBLICA: "LLAVE_PRIVADA_JWT_HTAS",
       BUCKET_HTAS: "/HABILITACION/BUCKET_HTAS",
-      ID_TELEGRAM: "ID_TELEGRAM"
+      ID_TELEGRAM: process.env.ID_TELEGRAM || "ID_TELEGRAM",
     };
 
     options.secretNames = {
@@ -137,7 +137,7 @@ export abstract class AbstractConfiguration {
 
     await Promise.all(promesas);
 
-    this.inicializaVariablesDefault();
+      this.inicializaVariablesDefault();
 
     this.logger.info(
       `Toolkit: Carga completa. ${this.storage.size} variables en memoria.`
@@ -171,8 +171,21 @@ export abstract class AbstractConfiguration {
     AbstractConfiguration.TOKEN_KEY_PUBLICA =
       this.getString("TOKEN_KEY_PUBLICA");
     AbstractConfiguration.S3_BUCKET_LOGS = this.getString("S3_BUCKET_LOGS");
+
     this.validarYAsignarDB("CON_AURORA_DB", "PARAMS_DB_AURORA");
     this.validarYAsignarDB("CON_AURORA_DB_RO", "PARAMS_DB_AURORA_RO");
+    if (
+      !AbstractConfiguration.APP_PUERTO ||
+      !AbstractConfiguration.BD_URL_DOCUMENT ||
+      !AbstractConfiguration.S3_BUCKET_LOGS ||
+      !AbstractConfiguration.URL_BASE_HERRAMIENTAS ||
+      !AbstractConfiguration.PARAMS_DB_AURORA ||
+      !AbstractConfiguration.PARAMS_DB_AURORA_RO
+    ) {
+      throw Error(
+        "Variables en AbstractConfiguration tiene valores vacios/null"
+      );
+    }
   }
 
   /**

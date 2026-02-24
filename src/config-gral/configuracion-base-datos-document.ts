@@ -1,6 +1,5 @@
-import mongoose, {  } from 'mongoose';
 import { Request, Response } from 'express';
-import { Schema, Model } from "mongoose";
+import mongoose, { Schema, Model } from "mongoose";
 import { LoggerS3 } from '../middlewares';
 import { exitoApi, errorApi } from '../respuestas';
 import { AbstractConfiguration } from '../aws';
@@ -39,19 +38,22 @@ export class ConfiguracionBaseDeDatosDocument {
     return `${protocol}://${user}:${passwordEscaped}@${rest}`;
   }
 
-  inicializar = async (): Promise<void> => {
+  inicializar = async (uriImport?: string, minPoolSize = 2, maxPoolSize = 4): Promise<mongoose.Mongoose>  => {
     try {
-      const uri = this.fixMongoUri(AbstractConfiguration.BD_URL_DOCUMENT);
+      const uri = this.fixMongoUri(uriImport || AbstractConfiguration.BD_URL_DOCUMENT);
       mongoose.set('strictQuery', false)
-      await mongoose.connect(uri, {
+      const mongo = await mongoose.connect(uri, {
         tls: true,
         tlsAllowInvalidCertificates: true,
-        minPoolSize: 10,
-        maxPoolSize: 15,
-        maxIdleTimeMS: 30000,
-        autoIndex: true,
+        minPoolSize,
+        maxPoolSize,
+        maxIdleTimeMS: 60000,
+        serverSelectionTimeoutMS: 5000,
+        connectTimeoutMS: 10000,
+        heartbeatFrequencyMS: 10000,
       });
       this.logger.info('<<<< Conexión exitosa a la base de datos >>>>');
+      return mongo;
     } catch (error) {
       this.logger.error(`Error de conexión a la BD: ${JSON.stringify(error)}`);
       throw new Error('Error de conexión ConfiguracionBaseDeDatosDocument');

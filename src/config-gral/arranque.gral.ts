@@ -94,7 +94,7 @@ class ConfiguracionPuerto {
         return this.instance;
     }
 
-    inicializar = async (): Promise<http.Server> => {
+    inicializar = async (rutaBase?: string): Promise<http.Server> => {
         const app = App.getInstance();
         const appPuertoConfig = (): Promise<http.Server> =>
             new Promise((resolve) => {
@@ -104,7 +104,7 @@ class ConfiguracionPuerto {
                         if (ruta && ruta.route && ruta.route.path) {
                             const verbo = Object.keys(ruta.route.methods)[0].toUpperCase();
                             this.logger.info(
-                                `${AbstractConfiguration.APP_RUTA_BASE}${ruta.route.path} -->> ${verbo}`,
+                                `${rutaBase || AbstractConfiguration.APP_RUTA_BASE}${ruta.route.path} -->> ${verbo}`,
                             );
                         }
                     });
@@ -206,7 +206,7 @@ export const initRutasMonitoreo = () => {
 /**
  * Debe ir despues de: ConfiguracionRutas.getInstance().inicializar();
  */
-export const iniciaRutasDefault = () => {
+export const iniciaRutasDefault = (rutaBase?: string) => {
     // 1. Definimos rutas por defecto y de error en el router
     RutaPorDefecto.getInstance().inicializar(AppRouter.getInstance());
     RutaError.getInstance().inicializar(AppRouter.getInstance());
@@ -214,15 +214,15 @@ export const iniciaRutasDefault = () => {
     // 2. AQUI montamos el Router una única vez bajo el prefijo configurado
     // Esto asegura que todo lo que se agregó al router (monitoreo + negocio)
     // pase por el flujo correcto.
-    App.getInstance().use(AbstractConfiguration.APP_RUTA_BASE, AppRouter.getInstance());
+    App.getInstance().use(rutaBase || AbstractConfiguration.APP_RUTA_BASE, AppRouter.getInstance());
     RutaPorDefecto.getInstance().inicializar(App.getInstance());
 };
 
 /**
  * Debe ir final de toda la consiguracion.
  */
-export const apagadoServidor = async () => {
-    const server = await ConfiguracionPuerto.getInstance().inicializar();
+export const apagadoServidor = async (rutaBase?: string) => {
+    const server = await ConfiguracionPuerto.getInstance().inicializar(rutaBase);
     ConfiguracionApagado.getInstance().inicializar(server);
 };
 
