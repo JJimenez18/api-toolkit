@@ -5,13 +5,16 @@ import axios, { AxiosRequestConfig } from "axios";
 
 //VariablesEntorno.getInstance().inicializar();
 
+process.env.TZ = 'America/Mexico_City';
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 export const asyncLocalStorage = new AsyncLocalStorage();
 
 export const mongoose = mongooseInstance;
 export const express = expressInstance;
 
 
-export { Document, Schema, Model, Types, ConnectOptions } from "mongoose";
+export { Document, Schema, Model, Types, ConnectOptions, UpdateQuery, FilterQuery, UpdateWithAggregationPipeline, QueryOptions } from "mongoose";
 
 export const ObjectId = mongoose.Types.ObjectId;
 export const isValidObjectId = mongoose.isValidObjectId;
@@ -21,6 +24,7 @@ export { axios, AxiosRequestConfig };
 export { Request, Response, NextFunction, Router } from "express";
 
 export {
+
   query,
   body,
   param,

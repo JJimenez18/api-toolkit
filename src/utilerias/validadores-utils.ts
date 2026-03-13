@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Request, RequestHandler, Response } from "express";
 import {
   body,
   CustomValidator,
@@ -222,10 +222,33 @@ export const validaXIdAcceso = async (
     throw errorApi.peticionNoAutorizada.faltanParametros(
       EMensajesError.NOT_AUTH,
       4100,
-      (solicitud as any).apiName
+      process.env.API_NOMBRE
     );
   }
   sig();
+};
+
+export const validateXidAcceso = (
+  apiname = AbstractConfiguration.API_NOMBRE
+): RequestHandler => {
+  const middleware: RequestHandler = async (
+    solicitud: Request,
+    _respuesta: Response,
+    sig: NextFunction
+  ) => {
+    const value = solicitud.headers["x-id-acceso"]
+      ? solicitud.headers["x-id-acceso"].toString()
+      : "";
+    if (!/^[0-9]{5,20}$/.test(value)) {
+      throw errorApi.peticionNoAutorizada.faltanParametros(
+        EMensajesError.NOT_AUTH,
+        4100,
+        apiname
+      );
+    }
+    sig();
+  };
+  return middleware;
 };
 
 export const validaXIdAccesoString = async (
@@ -244,7 +267,7 @@ export const validaXIdAccesoString = async (
     throw errorApi.peticionNoAutorizada.faltanParametros(
       EMensajesError.NOT_AUTH,
       4100,
-      (solicitud as any).apiName
+      process.env.API_NOMBRE
     );
   }
   sig();
@@ -308,15 +331,15 @@ export const verificaToken = async (
   siguiente: NextFunction
 ): Promise<void> => {
   const authHeader = solicitud.headers.token as string;
-  const istesting = Number(solicitud.headers.istesting) || 0;
-  if ([1].includes(istesting)) {
+  const skiptoken = Number(solicitud.headers.skiptoken) || 0;
+  if ([1].includes(skiptoken)) {
     return siguiente();
   }
   if (!AbstractConfiguration.TOKEN_KEY_PUBLICA) {
     throw errorApi.peticionNoAutorizada.tokenNoValido(
       "El campo TOKEN_KEY_PUBLICA, no es valida, favor de validar",
       4101,
-      (solicitud as any).apiName || AbstractConfiguration.API_NOMBRE
+      process.env.API_NOMBRE
     );
   }
   const llaveToken = [
@@ -338,12 +361,63 @@ export const verificaToken = async (
         throw errorApi.peticionNoAutorizada.tokenNoValido(
           "El token no es valido, favor de solicitar uno nuevo",
           4104,
-          (solicitud as any).apiName
+          process.env.API_NOMBRE
         );
       }
     }
   );
   return siguiente();
+};
+
+export const validateJWT = (
+  apiname = AbstractConfiguration.API_NOMBRE
+): RequestHandler => {
+  const middleware: RequestHandler = async (
+    solicitud: Request,
+    _respuesta: Response,
+    siguiente: NextFunction
+  ): Promise<void> => {
+    const authHeader = solicitud.headers.token as string;
+    const skiptoken = Number(solicitud.headers.skiptoken) || 0;
+    if ([1].includes(skiptoken)) {
+      return siguiente();
+    }
+    if (!AbstractConfiguration.TOKEN_KEY_PUBLICA) {
+      throw errorApi.peticionNoAutorizada.tokenNoValido(
+        "El campo TOKEN_KEY_PUBLICA, no es valida, favor de validar",
+        4101,
+        apiname
+      );
+    }
+    const llaveToken = [
+      "-----BEGIN PUBLIC KEY-----",
+      AbstractConfiguration.TOKEN_KEY_PUBLICA,
+      "-----END PUBLIC KEY-----",
+    ]
+      .join("\n")
+      .toString();
+    jwt.verify(
+      authHeader.trim(),
+      llaveToken,
+      { algorithms: ["RS256"] },
+      (err) => {
+        if (err) {
+          LoggerS3.getInstance()
+            .getLogger()
+            .debug(
+              `El token no es valido, favor de solicitar uno nuevo ${err}`
+            );
+          throw errorApi.peticionNoAutorizada.tokenNoValido(
+            "El token no es valido, favor de solicitar uno nuevo",
+            4104,
+            apiname
+          );
+        }
+      }
+    );
+    return siguiente();
+  };
+  return middleware;
 };
 
 export const isBase64 = (str: string): boolean => {
@@ -545,6 +619,9 @@ export const validacionCadenaNumeros = (
 ): Array<ValidationChain> => {
   const cadena = body(campo);
   const reglaBase = cadena
+    .isString()
+    .withMessage(campoEsCadena)
+    .bail()
     .trim()
     .notEmpty()
     .withMessage(campoEstaVacio(campo))
@@ -1133,12 +1210,25 @@ export const validaCamposSiPadreExiste = (
       .withMessage(`El campo ${fullPath} es requerido`)
       .bail()
       .isString()
-      .withMessage(`El campo ${fullPath} debe ser una cadena`)
-      .trim();
+      .withMessage(`El campo ${fullPath} debe ser una cadena`);
+    // .trim();
     // .custom((g)=>{
     //   console.log("🚀 ~ validaCamposSiPadreExiste ~ g:", g)
     //   return true
     // })
+  });
+};
+
+export const validaCampoHijoSiPadreExiste = (
+  padre: string,
+  hijos: string[]
+): ValidationChain[] => {
+  return hijos.map((hijo) => {
+    const fullPath = `${padre}.${hijo}`;
+    return body(fullPath)
+      .if(body(padre).exists())
+      .exists()
+      .withMessage(`El campo ${fullPath} es requerido cuando existe ${padre}`);
   });
 };
 
@@ -1565,7 +1655,7 @@ export const validaNumberConDecimales = async (
       const valor = match[1];
       if (valor.includes(".")) {
         throw errorApi.peticionNoValida.parametrosNoValidos(
-          `${ruta} contiene un valor decimal: ${valor}`
+          `El campo: ${ruta} contiene un valor decimal`
         );
       }
     }
@@ -1913,6 +2003,85 @@ export const validateNumeroEmpleado = (
   }
 
   return chain;
+};
+
+/**
+ * Middleware de Inspección de Tipos Estrictos (Anti-Float).
+ * * Objetivo: Detectar valores decimales (ej. 1.0) en el JSON crudo que JavaScript
+ * parsearía automáticamente como enteros, evitando inconsistencias en base de datos.
+ * * Ejemplos de cómo pasar las rutas (keys):
+ * - 'idSatelite'             -> Atributo en la raíz: { "idSatelite": 1 }
+ * - 'documento.idTipo'       -> Atributo anidado: { "documento": { "idTipo": 1 } }
+ * - 'detalles.*.cantidad'    -> Atributo dentro de arreglo de objetos: { "detalles": [{ "cantidad": 5 }] }
+ * - 'idEstatus.*'            -> Valores dentro de un arreglo plano: { "idEstatus": [1, 2, 3] }
+ * - 'detalles.*.serv.id'     -> Atributo profundo: { "detalles": [{ "serv": { "id": 10 } }] }
+ * * @param rutas - Array de strings con la ruta del campo a validar.
+ */
+export const strictIntegerMiddleware = (
+  rutas: string[],
+  apiName = process.env.API_NOMBRE
+) => {
+  return (req: any, res: Response, next: NextFunction) => {
+    try {
+      const raw = req.rawBody;
+      const body = req.body;
+
+      if (!raw || !body) return next();
+
+      // Función recursiva para extraer valores de rutas con comodines
+      const extraerValores = (nodo: any, partes: string[]): any[] => {
+        if (partes.length === 0) return [nodo];
+
+        const [primera, ...resto] = partes;
+        let resultados: any[] = [];
+
+        if (primera === "*") {
+          if (Array.isArray(nodo)) {
+            nodo.forEach((item) => {
+              resultados = resultados.concat(extraerValores(item, resto));
+            });
+          }
+        } else if (nodo && typeof nodo === "object" && primera in nodo) {
+          resultados = resultados.concat(extraerValores(nodo[primera], resto));
+        }
+
+        return resultados;
+      };
+
+      rutas.forEach((ruta) => {
+        const valores = extraerValores(body, ruta.split("."));
+        const nombreCampo = ruta.split(".").pop();
+
+        valores.forEach((val) => {
+          // Si es número, validamos que en el JSON original NO tenga punto decimal
+          if (typeof val === "number") {
+            // Regex dinámico: busca "campo": valor.decimal
+            const regex = new RegExp(
+              `"${nombreCampo}"\\s*:\\s*(${val}\\.\\d+)`,
+              "g"
+            );
+
+            if (regex.test(raw)) {
+              LoggerS3.getInstance()
+                .getLogger()
+                .info(
+                  `[Security] Valor decimal detectado en ruta entera: ${ruta} = ${val}.x`
+                );
+              throw errorApi.peticionNoValida.parametrosNoValidos(
+                `El campo '${ruta}' no permite decimales. Valor detectado: ${val}.x`,
+                4001,
+                apiName
+              );
+            }
+          }
+        });
+      });
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
 };
 
 export * from ".";

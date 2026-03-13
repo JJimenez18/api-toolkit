@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Request, RequestHandler, Response } from "express";
 import axios, { AxiosRequestConfig } from "axios";
 import { AbstractConfiguration } from "../aws";
 import { LoggerS3 } from "../middlewares";
@@ -46,18 +46,16 @@ export class GestorLlavesSeguridad {
     idAcceso: number;
     apiName?: string;
   }): Promise<ILLaveClienteSeguridad> => {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
     const { idAcceso, apiName } = info;
     let llaves;
     const mensaje = `El x-id-acceso: ${idAcceso} esta vencido o no se encontró`;
     if (!AbstractConfiguration.URL_BASE_HERRAMIENTAS) {
       LoggerS3.getInstance()
         .getLogger()
-        .info(
-          "consultaLLavesCifrado ~ process.env.URL_BASE_HERRAMIENTAS no tiene informacion"
-        );
+        .info("process.env.URL_BASE_HERRAMIENTAS no tiene informacion");
     }
     try {
-      process;
       const config: AxiosRequestConfig = {
         method: "get",
         url: `${AbstractConfiguration.URL_BASE_HERRAMIENTAS}/InterfacesRH/backoffice/seguridad/v2/keys/user/${idAcceso}`,
@@ -91,7 +89,7 @@ export class GestorLlavesSeguridad {
       throw errorApi.errorInternoServidor.bd(
         error.response?.data?.detalles || EMensajesError.KEY_ERROR,
         5009,
-        apiName
+        apiName || AbstractConfiguration.API_NOMBRE
       );
     }
     /* if (!llaves) {
@@ -103,7 +101,7 @@ export class GestorLlavesSeguridad {
   public validaLLavesCifrado = async (info: {
     aplicacion: string;
     idAcceso: number;
-    estesting: number;
+    keymock: number;
     apiName?: string;
   }): Promise<{
     keyPubBack: string;
@@ -112,17 +110,16 @@ export class GestorLlavesSeguridad {
     keyPrivClient: string;
     keyPubClient: string;
   }> => {
-    const { aplicacion, estesting, idAcceso, apiName } = info;
+    const { keymock, idAcceso, apiName } = info;
     let keyPrivClient = this.keyPrivClient;
     let keyPubBack = this.keyPubBack;
     let symmetricKey = this.symmetricKey;
     let keyPubClient = this.keyPubClient;
     let keyHash = this.keyHash;
-    if (![1].includes(estesting)) {
+    if (![1].includes(keymock)) {
       const respSeg = await this.consultaLLavesCifrado({
         idAcceso,
         apiName,
-        // aplicacion,
       });
       keyPrivClient = respSeg.keyPrivClient;
       keyPubBack = respSeg.keyPubBack;
@@ -145,13 +142,12 @@ export class GestorLlavesSeguridad {
   ): Promise<void> => {
     const aplicacion = req.headers["x-aplicacion"]?.toString() || "";
     const idAcceso = Number(req.headers["x-id-acceso"]) || 0;
-    const estesting = Number(req.headers.istesting) || 0;
+    const keymock = Number(req.headers.istesting) || 0;
     const { keyPrivClient, keyPubBack, symmetricKey, keyHash, keyPubClient } =
       await this.validaLLavesCifrado({
         aplicacion,
         idAcceso,
-        estesting,
-        apiName: (req as any).apiName || undefined,
+        keymock,
       });
     req.body.accesoPublico = keyPubBack;
     req.body.accesoPrivado = keyPrivClient;
@@ -159,6 +155,34 @@ export class GestorLlavesSeguridad {
     req.body.hash = keyHash;
     req.body.accesoPublicoCliente = keyPubClient;
     next();
+  };
+
+  public getKeysUser = (
+    apiName = AbstractConfiguration.API_NOMBRE
+  ): RequestHandler => {
+    const middleware: RequestHandler = async (
+      req: Request,
+      res: Response,
+      next: NextFunction
+    ): Promise<void> => {
+      const aplicacion = req.headers["x-aplicacion"]?.toString() || "";
+      const idAcceso = Number(req.headers["x-id-acceso"]) || 0;
+      const keymock = Number(req.headers.istesting) || 0;
+      const { keyPrivClient, keyPubBack, symmetricKey, keyHash, keyPubClient } =
+        await this.validaLLavesCifrado({
+          aplicacion,
+          idAcceso,
+          keymock,
+          apiName,
+        });
+      req.body.accesoPublico = keyPubBack;
+      req.body.accesoPrivado = keyPrivClient;
+      req.body.simetrico = symmetricKey;
+      req.body.hash = keyHash;
+      req.body.accesoPublicoCliente = keyPubClient;
+      next();
+    };
+    return middleware;
   };
 }
 

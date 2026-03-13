@@ -62,6 +62,13 @@ class ConfiguracionExpress {
             next();
         });
         app.use(
+        express.json({
+          verify: (req: any, res, buf) => {
+            req.rawBody = buf.toString();
+          },
+        }),
+      );
+        app.use(
             express.json({ limit: '25mb' }),
             (err: any, req: Request, res: Response, next: NextFunction) => {
                 if (err) {
@@ -94,11 +101,11 @@ class ConfiguracionPuerto {
         return this.instance;
     }
 
-    inicializar = async (rutaBase?: string): Promise<http.Server> => {
+    inicializar = async (rutaBase?: string, puerto?: string): Promise<http.Server> => {
         const app = App.getInstance();
         const appPuertoConfig = (): Promise<http.Server> =>
             new Promise((resolve) => {
-                const serv = app.listen(AbstractConfiguration.APP_PUERTO, () => {
+                const serv = app.listen(puerto || AbstractConfiguration.APP_PUERTO, () => {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     AppRouter.getInstance().stack.forEach((ruta: any) => {
                         if (ruta && ruta.route && ruta.route.path) {
@@ -115,7 +122,7 @@ class ConfiguracionPuerto {
             const server = await appPuertoConfig();
             server.timeout = 0;
             server.setTimeout(0);
-            this.logger.info(`Servidor ejecutandose en puerto: ${AbstractConfiguration.APP_PUERTO}`);
+            this.logger.info(`Servidor ejecutandose en puerto: ${puerto || AbstractConfiguration.APP_PUERTO}`);
             return server;
         } catch (error: any) {
             this.logger.error(`'Error al configurar el puerto de la aplicación ${error.message}`);
@@ -219,10 +226,10 @@ export const iniciaRutasDefault = (rutaBase?: string) => {
 };
 
 /**
- * Debe ir final de toda la consiguracion.
+ * Debe ir final de toda la configuracion.
  */
-export const apagadoServidor = async (rutaBase?: string) => {
-    const server = await ConfiguracionPuerto.getInstance().inicializar(rutaBase);
+export const apagadoServidor = async (rutaBase?: string, puerto?: string) => {
+    const server = await ConfiguracionPuerto.getInstance().inicializar(rutaBase, puerto);
     ConfiguracionApagado.getInstance().inicializar(server);
 };
 

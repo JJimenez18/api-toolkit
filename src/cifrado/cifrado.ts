@@ -634,8 +634,26 @@ export class Cifrado {
     }
     return resp;
   };
+
+  public cifrarCampoSiAplica = (
+    valor: string,
+    llavePublica: string,
+    cifrarDatos = true
+  ): string => {
+    if (!cifrarDatos) {
+      return valor;
+    }
+    return validaCifradoRSA(valor, llavePublica);
+  };
 }
 
+/**
+ * 
+ * @param dataBase64 
+ * @param llave 
+ * @returns 
+ * Ocupar para Node20
+ */
 export const decifrarRsa_pkcs1 = (dataBase64: string, llave: string) => {
   try {
     const key = new NodeRSA();
@@ -661,6 +679,14 @@ export const decifrarRsa_pkcs1 = (dataBase64: string, llave: string) => {
   }
 };
 
+/**
+ * 
+ * @param textoPlano 
+ * @param llave 
+ * @returns 
+ * 
+ * Ocupar en version 20 de Node
+ */
 export const cifrarRsa_pkcs1 = (textoPlano: string, llave: string) => {
   try {
     const publicKeyPem = `
@@ -702,16 +728,20 @@ ${llave}
 };
 
 export const cifrarCampoSiAplica = (
-    valor: string,
-    // claveCampo: string,
-    llavePublica: string,
-    cifrarDatos = true
-  ): string => {
-    if (!cifrarDatos) {
-      // console.log('🚀 ~ cifrarCampoSiAplica ~ claveCampo:', claveCampo, valor);
-      return valor;
-    }
-    return Cifrado.getInstance().validaCadenaRSA(valor, llavePublica);
-  };
+  valor: string,
+  // claveCampo: string,
+  llavePublica: string,
+  cifrarDatos = true
+): string => {
+  if (!cifrarDatos) {
+    // console.log('🚀 ~ cifrarCampoSiAplica ~ claveCampo:', claveCampo, valor);
+    return valor;
+  }
+  return Cifrado.getInstance().validaCadenaRSA(valor, llavePublica);
+};
 
-export * from '.';
+export * from ".";
+
+function validaCifradoRSA(valor: string, llavePublica: string): string {
+  throw new Error("Function not implemented.");
+}
