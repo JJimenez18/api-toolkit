@@ -31,6 +31,15 @@ export class AppRouter {
     }
 }
 
+/**
+ * V2: Factory para crear routers independientes
+ */
+class AppRouterV2 {
+    static create(): express.Router {
+        return express.Router();
+    }
+}
+
 class ConfiguracionExpress {
     private readonly logger = LoggerS3.getInstance().getLogger();
     private static instance: ConfiguracionExpress;
@@ -100,6 +109,46 @@ class ConfiguracionPuerto {
         }
         return this.instance;
     }
+    
+    private imprimirRutasInyectadas = (app: express.Application) => {
+        const iterarStack = (stack: any[], basePath: string = '') => {
+            stack.forEach((layer) => {
+                if (layer.route) {
+                    // 1. Es un endpoint final directamente montado
+                    const path = basePath + (layer.route.path === '/' ? '' : layer.route.path);
+                    const verbo = Object.keys(layer.route.methods)[0]?.toUpperCase() || 'UNKNOWN';
+                    this.logger.info(`${path} -->> ${verbo}`);
+                } else if (layer.name === 'router' && layer.handle.stack) {
+                    // 2. Es un router anidado (Tus routers V2)
+                    let routerPath = '';
+                    
+                    // layer.regexp en Express se ve así: /^\/api\/v1\/?(?=\/|$)/i
+                    // Validamos que no sea el router raíz genérico que usa Express por defecto ('^\\/?$')
+                    if (layer.regexp && layer.regexp.source !== '^\\/?$') {
+                        // LA MAGIA DE LA REGEX: Limpiamos la basura de Express
+                        routerPath = '/' + layer.regexp.source
+                            .replace('^\\/', '')             // Quitamos el inicio
+                            .replace('\\/?(?=\\/|$)', '')    // Quitamos la terminación opcional
+                            .replace(/\\\//g, '/');          // Cambiamos los \/ por / limpios
+                    }
+
+                    // Limpiamos dobles diagonales por si acaso (ej. //api/v1)
+                    const cleanBasePath = (basePath + routerPath).replace(/\/+/g, '/');
+                    
+                    // Llamada recursiva para sacar lo que hay dentro de ese router
+                    iterarStack(layer.handle.stack, cleanBasePath);
+                }
+            });
+        };
+
+        // Accedemos a las tripas de Express casteando a "any" si TS se pone roñoso
+        const appInternals = app as any;
+        if (appInternals._router && appInternals._router.stack) {
+            this.logger.info('--- MAPEANDO RUTAS ACTIVAS ---');
+            iterarStack(appInternals._router.stack);
+            this.logger.info('------------------------------');
+        }
+    };
 
     inicializar = async (rutaBase?: string, puerto?: string): Promise<http.Server> => {
         const app = App.getInstance();
@@ -107,14 +156,15 @@ class ConfiguracionPuerto {
             new Promise((resolve) => {
                 const serv = app.listen(puerto || AbstractConfiguration.APP_PUERTO, () => {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    AppRouter.getInstance().stack.forEach((ruta: any) => {
+                    /* AppRouter.getInstance().stack.forEach((ruta: any) => {
                         if (ruta && ruta.route && ruta.route.path) {
                             const verbo = Object.keys(ruta.route.methods)[0].toUpperCase();
                             this.logger.info(
                                 `${rutaBase || AbstractConfiguration.APP_RUTA_BASE}${ruta.route.path} -->> ${verbo}`,
                             );
                         }
-                    });
+                    }); */
+                    this.imprimirRutasInyectadas(app);
                     resolve(serv);
                 });
             });
@@ -211,6 +261,15 @@ export const initRutasMonitoreo = () => {
 };
 
 /**
+ * V2: inicializa monitoreo sobre el router recibido
+ */
+export const initRutasMonitoreoV2 = (router: express.Router) => {
+    const monitoreo = RutasMonitoreo.getInstance();
+    monitoreo.inicializar(router);
+    monitoreo.monitoreoDisponible(RutasBase.getInstance().monitoreo);
+};
+
+/**
  * Debe ir despues de: ConfiguracionRutas.getInstance().inicializar();
  */
 export const iniciaRutasDefault = (rutaBase?: string) => {
@@ -223,6 +282,23 @@ export const iniciaRutasDefault = (rutaBase?: string) => {
     // pase por el flujo correcto.
     App.getInstance().use(rutaBase || AbstractConfiguration.APP_RUTA_BASE, AppRouter.getInstance());
     RutaPorDefecto.getInstance().inicializar(App.getInstance());
+};
+
+/**
+ * V2: monta un router independiente bajo la ruta base indicada
+ */
+export const iniciaRutasDefaultV2 = (router: express.Router, rutaBase: string) => {
+    RutaPorDefecto.getInstance().inicializar(router);
+    RutaError.getInstance().inicializar(router);
+
+    App.getInstance().use(rutaBase, router);
+};
+
+/**
+ * V2: helper para inicializar app una sola vez y crear router nuevo
+ */
+export const crearRouterV2 = (): express.Router => {
+    return AppRouterV2.create();
 };
 
 /**

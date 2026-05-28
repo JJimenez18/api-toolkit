@@ -2,7 +2,6 @@ import winston, { createLogger, format, transports } from "winston";
 import stringify from "fast-safe-stringify";
 import { AbstractConfiguration } from "../aws/AbstractConfiguration";
 import { TraceId } from "./TraceId";
-import { VariablesEntorno } from "../utilerias/variables-entorno";
 
 const { S3StreamLogger } = require("s3-streamlogger");
 
@@ -60,7 +59,7 @@ export class LoggerS3 {
     return this.logger;
   }
 
-  private formatoLog = format.printf((info) => {
+  private formatoLogV2 = format.printf((info) => {
     const traceId = TraceId.obtenerTraceId();
     const prefixTrace = traceId ? `|TraceId: ${traceId}|` : "";
     const servicios = info.servicios || [];
@@ -79,6 +78,38 @@ export class LoggerS3 {
 
     return stringify(logOutput);
   });
+
+    private formatoLog = format.printf((info) => {
+    const traceId = TraceId.obtenerTraceId();
+    const prefixTrace = traceId ? `|TraceId: ${traceId}|` : "";
+    
+    // --- CAMBIO AQUÍ ---
+    // Si pasas el arreglo directo, Winston a veces lo guarda en info[Symbol.for('splat')] 
+    // o simplemente añade las propiedades al objeto info si pasas un objeto.
+    // Para capturar el arreglo que envías:
+    const metadata = info[Object.getOwnPropertySymbols(info).find(s => s.toString() === 'Symbol(splat)') as any];
+    const servicios = info.servicios || (Array.isArray(metadata) ? metadata[0] : []);
+    
+    // Si envías el tiempo total como parte de un objeto de metadatos
+    const mensajeLimpio = `${info.message}`.replace(/"/g, "'").trim();
+
+    const tiempoTotal = Array.isArray(servicios) 
+      ? servicios.reduce((acc: number, s: any) => acc + (Number(s.tiempo) || 0), 0)
+      : 0;
+      
+    const logOutput = {
+      log_data: {
+        fecha: info.timestamp,
+        Level: info.level.toUpperCase(),
+        Mensaje: `${prefixTrace} ${mensajeLimpio}`.trim(),
+        servicios: servicios, // Ahora debería traer el array
+        TiempoTotal: Number(tiempoTotal),
+      },
+    };
+
+    return stringify(logOutput);
+  });
+
 
   constructor() {
     const config = LoggerS3.CONFIGURACION_LOG;
@@ -99,7 +130,7 @@ export class LoggerS3 {
       try {
         const s3Opts: any = {
           bucket,
-          name_format: nameFormat || `${VariablesEntorno.API_NOMBRE}.txt`,
+          name_format: nameFormat, // || `${AbstractConfiguration.API_NOMBRE}.txt`,
           buffer_size: bufferSize
             ? Number(1000 * Number(bufferSize))
             : undefined,

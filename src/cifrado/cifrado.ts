@@ -477,10 +477,10 @@ export class Cifrado {
         .createHmac("sha256", hmacKey)
         .update(iv_cipherText)
         .digest("base64");
-      console.log(receivedHMAC.length);
+      // console.log(receivedHMAC.length);
       const bytes = Buffer.from(calculatedHMAC, "base64");
       if (receivedHMAC.length == bytes.length) {
-        console.log("si entra");
+        // console.log("si entra");
         const decipher = crypto.createDecipheriv(algoritmo, aesKey, iv);
         let decrypted = decipher.update(cipherText);
         const final = Buffer.concat([decrypted, decipher.final()]);
@@ -634,24 +634,13 @@ export class Cifrado {
     }
     return resp;
   };
-
-  public cifrarCampoSiAplica = (
-    valor: string,
-    llavePublica: string,
-    cifrarDatos = true
-  ): string => {
-    if (!cifrarDatos) {
-      return valor;
-    }
-    return validaCifradoRSA(valor, llavePublica);
-  };
 }
 
 /**
- * 
- * @param dataBase64 
- * @param llave 
- * @returns 
+ *
+ * @param dataBase64
+ * @param llave
+ * @returns
  * Ocupar para Node20
  */
 export const decifrarRsa_pkcs1 = (dataBase64: string, llave: string) => {
@@ -680,11 +669,11 @@ export const decifrarRsa_pkcs1 = (dataBase64: string, llave: string) => {
 };
 
 /**
- * 
- * @param textoPlano 
- * @param llave 
- * @returns 
- * 
+ *
+ * @param textoPlano
+ * @param llave
+ * @returns
+ *
  * Ocupar en version 20 de Node
  */
 export const cifrarRsa_pkcs1 = (textoPlano: string, llave: string) => {
@@ -731,17 +720,86 @@ export const cifrarCampoSiAplica = (
   valor: string,
   // claveCampo: string,
   llavePublica: string,
-  cifrarDatos = true
+  cifrarDatos = true,
+  oaep = false
 ): string => {
   if (!cifrarDatos) {
     // console.log('🚀 ~ cifrarCampoSiAplica ~ claveCampo:', claveCampo, valor);
     return valor;
   }
-  return Cifrado.getInstance().validaCadenaRSA(valor, llavePublica);
+  return Cifrado.getInstance().validaCadenaRSA(valor, llavePublica, oaep);
+};
+
+/**
+ * Descifra de forma masiva campos específicos dentro de un arreglo de objetos usando RSA-ECB-PKCS1.
+ * Ideal para procesar datos cifrados con llave pública que requieren la llave privada del servidor.
+ * 
+ * @template T - Tipo de los objetos contenidos en el arreglo.
+ * @param data.arreglo - Listado de objetos a procesar.
+ * @param data.campos - Rutas de los campos (soporta anidación con puntos).
+ * @param data.llavePrivada - String de la llave privada RSA (PEM).
+ * @returns El arreglo con los valores convertidos a texto plano.
+ */
+export const decifra_RSA_ECB_PKCS1 = <T>(data: { arreglo: T[], campos: string[], llavePrivada: string }): T[] => {
+  const { arreglo, campos, llavePrivada } = data;
+  arreglo.forEach((hta: any) => {
+    campos.forEach((ruta) => {
+      const partes = ruta.split('.');
+      let ref: any = hta;
+      for (let i = 0; i < partes.length - 1; i++) {
+        ref = ref[partes[i]];
+      }
+      const key = partes[partes.length - 1];
+      LoggerS3.getInstance().getLogger().info(`decifra_RSA_ECB_PKCS1 _ key: ${key}`);
+      const respDecifrado = decifrarRsa_pkcs1(ref[key], llavePrivada);
+      if (respDecifrado.error) {
+        LoggerS3.getInstance().getLogger().error(`decifra_RSA_ECB_PKCS1 ~ respDecifrado: ${key}`);
+      }
+      ref[key] = respDecifrado.valor;
+    });
+  });
+  return arreglo as T[];
+};
+
+
+/**
+ * Descifra de forma masiva campos específicos dentro de un arreglo de objetos usando AES-CBC-PKCS5.
+ * Soporta rutas anidadas mediante notación de puntos (ej. "usuario.perfil.telefono").
+ * 
+ * @template T - Tipo de los objetos contenidos en el arreglo.
+ * @param data.arreglo - Listado de objetos que contienen los campos cifrados.
+ * @param data.campos - Lista de strings con las rutas de los campos a descifrar (ej: ['numEmpleado', 'personal.correo']).
+ * @param data.accesoSimetrico - Llave simétrica utilizada para el descifrado AES.
+ * @param data.codigoAutentificacionHash - Hash o firma para validar la integridad del mensaje.
+ * @returns El arreglo original con los campos indicados ya descifrados.
+ */
+export const decifra_AES_CBC_PKCS5 = <T>(
+  data: { arreglo: T[], campos: string[], accesoSimetrico: string, codigoAutentificacionHash: string },
+): T[] => {
+  const { arreglo, campos, accesoSimetrico, codigoAutentificacionHash } = data;
+  arreglo.forEach((hta: any) => {
+    campos.forEach((ruta) => {
+      const partes = ruta.split('.');
+      let ref: any = hta;
+      for (let i = 0; i < partes.length - 1; i++) {
+        ref = ref[partes[i]];
+      }
+      const key = partes[partes.length - 1];
+      LoggerS3.getInstance().getLogger().info(`decifra_AES_CBC_PKCS5 _ key: ${key}`);
+      ref[key] = Cifrado.getInstance().descifrar_AES_CBC_PKCS5(ref[key], accesoSimetrico, codigoAutentificacionHash).valor || '';
+    });
+  });
+  return arreglo as T[];
+};
+
+export const cadenaCifradaAES = (AESKEYBASE64: string, HMACKEYBASE64: string, cadena: string): string => {
+  const cifrado = Cifrado.getInstance().validaCadenaAES(cadena, AESKEYBASE64, HMACKEYBASE64);
+  const tieneCoincidencias = buscaCombinacionEnCadena(cifrado);
+  if (tieneCoincidencias) {
+    // Si se encuentran coincidencias, se vuelve a cifrar
+    return cadenaCifradaAES(AESKEYBASE64, HMACKEYBASE64, cadena);
+  }
+  return cifrado;
 };
 
 export * from ".";
-
-function validaCifradoRSA(valor: string, llavePublica: string): string {
-  throw new Error("Function not implemented.");
-}

@@ -4,6 +4,7 @@ import { AbstractConfiguration } from "../aws";
 import { LoggerS3 } from "../middlewares";
 import { errorApi } from "../respuestas";
 import { EMensajesError } from "../enum";
+import { operacionesEncryptRSA, EOpEncrypt } from "../utilerias";
 
 export interface ILLaveClienteSeguridad {
   keyPrivBack: string;
@@ -17,6 +18,7 @@ export interface ILLaveClienteSeguridad {
   fechaFin: Date;
   estatus: number;
   userGenera: string;
+  fechaReutilizacion: Date;
 }
 
 export class GestorLlavesSeguridad {
@@ -135,14 +137,29 @@ export class GestorLlavesSeguridad {
     };
   };
 
+  /**
+   * Middleware: Obtención de Llaves de Seguridad.
+   *
+   * @description Extrae credenciales de headers y valida el set de llaves de cifrado.
+   * @returns INYECTA en req.body:
+   *  - accesoPublico: Llave pública del Backend.
+   *  - accesoPrivado: Llave privada del Cliente.
+   *  - simetrico: Llave AES.
+   *  - hash: Secreto para validación de integridad de datos.
+   *  - accesoPublicoCliente: Llave pública del Cliente (para cifrar la petición).
+   */
   public obtenerKeys = async (
     req: Request,
     res: Response,
     next: NextFunction
   ): Promise<void> => {
-    const aplicacion = req.headers["x-aplicacion"]?.toString() || "";
-    const idAcceso = Number(req.headers["x-id-acceso"]) || 0;
-    const keymock = Number(req.headers.istesting) || 0;
+    const aplicacion = req.headers["x-aplicacion"]
+      ? req.headers["x-aplicacion"]?.toString()
+      : "";
+    const idAcceso = req.headers["x-id-acceso"]
+      ? Number(req.headers["x-id-acceso"])
+      : 0;
+    const keymock = req.headers?.keymock ? Number(req.headers.keymock) : 0;
     const { keyPrivClient, keyPubBack, symmetricKey, keyHash, keyPubClient } =
       await this.validaLLavesCifrado({
         aplicacion,
@@ -157,6 +174,19 @@ export class GestorLlavesSeguridad {
     next();
   };
 
+   /**
+   * Middleware: Obtención de Llaves de Seguridad.
+   *
+   * @description Extrae credenciales de headers y valida el set de llaves de cifrado.
+   * Parametro opcional apiName, para inyectar API_NOMBRE especificos
+   * @returns INYECTA en req.body:
+   *  - accesoPublico: Llave pública del Backend.
+   *  - accesoPrivado: Llave privada del Cliente.
+   *  - simetrico: Llave AES.
+   *  - hash: Secreto para validación de integridad de datos.
+   *  - accesoPublicoCliente: Llave pública del Cliente (para cifrar la petición).
+   */
+
   public getKeysUser = (
     apiName = AbstractConfiguration.API_NOMBRE
   ): RequestHandler => {
@@ -165,9 +195,13 @@ export class GestorLlavesSeguridad {
       res: Response,
       next: NextFunction
     ): Promise<void> => {
-      const aplicacion = req.headers["x-aplicacion"]?.toString() || "";
-      const idAcceso = Number(req.headers["x-id-acceso"]) || 0;
-      const keymock = Number(req.headers.istesting) || 0;
+      const aplicacion = req.headers["x-aplicacion"]
+        ? req.headers["x-aplicacion"]?.toString()
+        : "";
+      const idAcceso = req.headers["x-id-acceso"]
+        ? Number(req.headers["x-id-acceso"])
+        : 0;
+      const keymock = req.headers?.keymock ? Number(req.headers.keymock) : 0;
       const { keyPrivClient, keyPubBack, symmetricKey, keyHash, keyPubClient } =
         await this.validaLLavesCifrado({
           aplicacion,
@@ -183,6 +217,143 @@ export class GestorLlavesSeguridad {
       next();
     };
     return middleware;
+  };
+
+  /**
+   * Configura las llaves de seguridad en la petición.
+   * @param apiNombre Identificador de la API para el gestor de llaves.
+   * @returns Inyecta en req.body:
+   *          - accesoPublico: Llave pública del backend (RSA)
+   *          - accesoPrivado: Llave privada asociada al cliente
+   *          - simetrico: Llave AES para cifrado de mensajes
+   *          - hash: Llave para validación de integridad
+   *          - accesoPublicoCliente: Llave pública del cliente que ocuparemos para cifrar el request
+   */
+  public set = (apiNombre?: string) => {
+    return async (
+      req: Request,
+      res: Response,
+      next: NextFunction
+    ): Promise<void> => {
+      const aplicacion = req.headers["x-aplicacion"]?.toString() || "";
+      const idAcceso = Number(req.headers["x-id-acceso"]) || 0;
+      const keymock = Number(req.headers.keymock) || 0;
+      try {
+        const {
+          keyPrivClient,
+          keyPubBack,
+          symmetricKey,
+          keyHash,
+          keyPubClient,
+        } = await GestorLlavesSeguridad.getInstance().validaLLavesCifrado({
+          aplicacion,
+          idAcceso,
+          keymock,
+          apiName: apiNombre || undefined,
+        });
+        req.body.accesoPublico = keyPubBack;
+        req.body.accesoPrivado = keyPrivClient;
+        req.body.simetrico = symmetricKey;
+        req.body.hash = keyHash;
+        req.body.accesoPublicoCliente = keyPubClient;
+        return next();
+      } catch (error: any) {
+        if (req.url.startsWith("/services")) {
+          throw errorApi.recursoNoEncontrado.desconocido(error.detalles);
+        }
+        throw errorApi.peticionNoAutorizada.desconocido(
+          EMensajesError.NOT_AUTH,
+          undefined,
+          apiNombre
+        );
+      }
+    };
+  };
+
+  /**
+   * Middleware genérico para cifrar campos del body utilizando RSA.
+   * @param campos Lista de strings con los nombres de las propiedades a cifrar.
+   * Los campos pueden ser definidos:
+   * Una propiedad simple: "campo"
+   * Propiedades anidadas: "objeto.subobjeto.campo"
+   * Arreglos usando "[]": "detalle[].precio" recorrerá cada elemento del arreglo detalle
+   * @param oaep Booleano para activar/desactivar el padding OAEP (por defecto false).
+   */
+  public cifraReqRSA = (campos: string[], oaep: boolean = false) => {
+    return async (
+      req: Request,
+      res: Response,
+      next: NextFunction
+    ): Promise<void> => {
+      // 1. Verificación del header 'cifrarequest'. Si es '0', se salta el cifrado.
+      const cifrarequest = req.headers["cifrarequest"]?.toString() || "0";
+      if (cifrarequest === "0") {
+        return next();
+      }
+
+      try {
+        /**
+         * 2. Ejecución del cifrado RSA.
+         * Se utiliza la llave pública del cliente inyectada previamente en el body.
+         * @returns El body con los campos especificados convertidos a criptogramas.
+         */
+        req.body = operacionesEncryptRSA(
+          req.body,
+          campos,
+          (req.body as any).accesoPublicoCliente,
+          oaep,
+          EOpEncrypt.CIFRADO
+        );
+
+        // Comentario: Si necesitas cifrar archivos adjuntos con AES (GCM),
+        // este es el punto de inyección lógica usando req.body.simetrico.
+      } catch (error: any) {
+        // 3. Manejo de excepciones en el proceso de cifrado.
+        LoggerS3.getInstance().getLogger().error(`Error al cifrar los campos RSA: ${error.message}`);
+        // Opcional: throw errorApi... si quieres que el cliente sepa que falló el cifrado.
+      }
+
+      return next();
+    };
+  };
+
+  /**
+   * Middleware genérico para descifrar campos del body utilizando RSA.
+   * @param campos Lista de propiedades que vienen cifradas y se deben procesar.
+   * Los campos pueden ser definidos:
+   * Una propiedad simple: "campo"
+   * Propiedades anidadas: "objeto.subobjeto.campo"
+   * Arreglos usando "[]": "detalle[].precio" recorrerá cada elemento del arreglo detalle
+   * @param oaep Booleano para el padding RSA (por defecto false).
+   */
+  public descifrarDatosRSA = (campos: string[], oaep: boolean = false) => {
+    return async (
+      req: Request,
+      res: Response,
+      next: NextFunction
+    ): Promise<void> => {
+      try {
+        /**
+         * 1. Descifrado RSA de campos específicos.
+         * Se utiliza 'accesoPrivado' (inyectada previamente por el Gestor de Llaves).
+         */
+        req.body = operacionesEncryptRSA(
+          req.body,
+          campos,
+          (req.body as any).accesoPrivado,
+          oaep,
+          EOpEncrypt.DECIFRADO
+        );
+
+        return next();
+      } catch (error: any) {
+        this.logger.info(`Error en descifrarDatosRSA: ${error.message || error}`);
+
+        throw errorApi.peticionInvalida.parametrosNoValidos(
+          "No se pudo descifrar la información"
+        );
+      }
+    };
   };
 }
 

@@ -171,3 +171,113 @@ export const overrideConsole = () => {
         logger.debug(mensaje);
     };
 };
+
+
+
+/**
+ * Elimina ceros a la izquierda de una placa o serie.
+ */
+export const formatearPlacaSerie = (palabra: string): string => {
+    let palabraFormat = '';
+    let avanzar = false;
+
+    for (const letra of palabra) {
+        if (letra !== '0') {
+            avanzar = true;
+        }
+        if (avanzar) {
+            palabraFormat += letra;
+        }
+    }
+    return palabraFormat.trim();
+};
+
+/**
+ * Si es un número entero, le agrega ceros a la izquierda hasta completar 18 caracteres.
+ */
+export const formatearNumeroDeSerie = (serie: string | number): string => {
+    if (Number.isInteger(Number(serie))) {
+        return String(serie).padStart(18, '0');
+    }
+    return String(serie).trim();
+};
+
+/**
+ * Convierte a minúsculas, elimina ceros a la izquierda y espacios.
+ */
+export const formatearCadena = (cadena: string | number): string => {
+    return String(cadena)
+        .toLowerCase()
+        .trim()
+        .replace(/^0+/, '') // Simplificado sin el grupo de captura ( )
+        .trim();
+};
+
+/**
+ * Compara dos cadenas tras aplicar el formateo estándar.
+ */
+export const compararCadenas = (cadena1: string | number, cadena2: string | number): boolean => {
+    return formatearCadena(cadena1) === formatearCadena(cadena2);
+};
+
+export const fechaYYYMMDD = (fecha: Date): string => {
+  const anio = `${fecha.getFullYear()}`;
+  const mes = `${fecha.getMonth() + 1}`.padStart(2, '0');
+  const dia = `${fecha.getDate()}`.padStart(2, '0');
+  // console.log(`${anio}-${mes}-${dia}`);
+  return `${anio}-${mes}-${dia}`;
+};
+
+/**
+ * Convierte minutos a segundos para su uso en JWT (exp) o Cache (TTL).
+ * @param minutes - Cantidad de minutos a convertir.
+ * @returns Cantidad equivalente en segundos.
+ */
+export const convertMinutesToSeconds = (minutes: number): number => {
+  if (minutes < 0) {
+    throw new Error('El tiempo no puede ser negativo');
+  }
+  return Math.floor(minutes * 60);
+};
+
+export const fechaDDMMAA = (
+  fecha: Date,
+  separador?: string,
+): string => {
+  const signo = separador || '/';
+  const dia = `${fecha.getDate()}`.padStart(2, '0');
+  const mes = `${fecha.getMonth() + 1}`.padStart(2, '0');
+  const anio = fecha.getFullYear();
+  return `${dia}${signo}${mes}${signo}${anio}`;
+};
+
+export const fechaDDMMAAHHMM = (
+  fecha: Date,
+): string => {
+  const dia = `${fecha.getDate()}`.padStart(2, '0');
+  const mes = `${fecha.getMonth() + 1}`.padStart(2, '0');
+  const anio = fecha.getFullYear();
+  const horas = `${fecha.getHours()}`.padStart(2, '0');
+  const minutos = `${fecha.getMinutes()}`.padStart(2, '0');
+  return `${dia}${mes}${anio}${horas}${minutos}`;
+};
+
+export const camalize = (cadena: string): string => cadena.replace(
+  /\w\S*/g,
+  (txt) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase(),
+);
+
+export const esPar = (
+  numero: number | string,
+): boolean => {
+  if (typeof numero !== 'number') {
+    // console.log('Debes ingresar un numero');
+    return false;
+  }
+  if (numero % 2 === 0) {
+    // console.log(`El numero ${numero} es Par`);
+    return true;
+  }
+  // console.log(`El numero ${numero} es Impar`);
+  return false;
+};

@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from "async_hooks";
 import mongooseInstance from "mongoose";
 import expressInstance from "express";
-import axios, { AxiosRequestConfig } from "axios";
+import axios, { AxiosError, AxiosRequestConfig, AxiosResponse, Method } from "axios";
 
 //VariablesEntorno.getInstance().inicializar();
 
@@ -19,7 +19,7 @@ export { Document, Schema, Model, Types, ConnectOptions, UpdateQuery, FilterQuer
 export const ObjectId = mongoose.Types.ObjectId;
 export const isValidObjectId = mongoose.isValidObjectId;
 
-export { axios, AxiosRequestConfig };
+export { axios, AxiosRequestConfig, Method, AxiosResponse, AxiosError };
 
 export { Request, Response, NextFunction, Router } from "express";
 
@@ -42,3 +42,6 @@ export * from "./src/respuestas";
 export * from "./src/rutas-monitoreo";
 export * from "./src/utilerias";
 export * from "./src/config-gral";
+export * from "./src/document";
+export * from "./src/gestion-seguridad";
+export * from "./src/cron-seguro";

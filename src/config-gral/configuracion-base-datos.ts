@@ -2,7 +2,7 @@ import { performance } from "perf_hooks";
 import { LoggerS3 } from "../middlewares";
 import { AbstractConfiguration, IParametrosBD } from "../aws";
 import { SistemasEnum } from "../enum";
-import { calcularTiempoEjecucion } from "../utilerias";
+import { calcularTiempoEjecucion, Telegram } from "../utilerias";
 import { IDetalleServicio } from "../models";
 import mysql from "mysql2/promise";
 
@@ -225,14 +225,18 @@ export class ConfiguracionBaseDeDatos {
         tiempo: calcularTiempoEjecucion({ inicio, final }),
       });
 
+      const resp = ((respuesta as unknown[])[0] as unknown[])[0] as T[];
+
       this.logger.info(
         `Ejecucion correcta sp:${
           spParams.nombre
-        }, parametros: ${spParams.parametros.toString()}`,
+        }, parametros: ${spParams.parametros.toString()}, respuesta: ${JSON.stringify(
+          resp
+        )}`,
         detalleServicio
       );
 
-      return ((respuesta as unknown[])[0] as unknown[])[0] as T[];
+      return resp;
     } catch (error: any) {
       const final = performance.now();
       detalleServicio.push({
@@ -259,6 +263,34 @@ export class ConfiguracionBaseDeDatos {
       }
     }
   };
+
+   public ejecutarSPOut = async (spParams: ISPParams): Promise<{data:any | null}> => {
+      const detalleServicio: IDetalleServicio[] = [];
+      let conn;
+      try {
+        conn = await this.getConexion(AbstractConfiguration.PARAMS_DB_AURORA);
+      } catch (error) {
+        throw new Error('Error al adquirir la conexion BD');
+      }
+      const inicio = performance.now();
+      try {
+        const { parametros, nombre } = spParams;
+        await conn.execute(nombre, parametros);
+        const [outputs] = await conn.query(`SELECT ${nombre.split(',').filter((p) => p.includes('@')).join(',').replace(')', '')};`);
+        return Array.isArray(outputs) ? { data: outputs[0] } : { data: null };
+      } catch (error: any) {
+        const final = performance.now();
+        detalleServicio.push({ servicio: 'execute', sistema: SistemasEnum[SistemasEnum.AURORA], tiempo: calcularTiempoEjecucion({ inicio, final }) });
+        this.logger.error(`Error al ejecutar sp:${spParams.nombre}, detalle: ${error?.message}`, detalleServicio);
+        // this.logger.error(`Error al ejecutar sp:${spParams.nombre}, parametros: ${spParams.parametros.toString()}, detalle: ${error?.message}`, detalleServicio);
+        await Telegram.getInstance().enviarNotificacion(
+          `${JSON.stringify(spParams.nombre)}, ${JSON.stringify(spParams.parametros)}, ${JSON.stringify(error.message)}`
+        ).catch((err)=>(console.log(err)));
+        throw new Error(`Error al ejecutar sp: ${spParams.nombre}`);
+      } finally {
+        conn.end();
+      }
+    }
 }
 
 export * from ".";

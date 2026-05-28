@@ -1,5 +1,4 @@
 import { NextFunction, Request, Response } from 'express';
-// import jwt from 'jsonwebtoken';
 export class ValidadorToken {
 
   static validar = (solicitud: Request, respuesta: Response, siguienteMiddleware: NextFunction):void => {

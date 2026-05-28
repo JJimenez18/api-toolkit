@@ -1387,13 +1387,19 @@ export const operacionesEncryptRSA = (
   oaep: boolean,
   operacion: EOpEncrypt
 ): any => {
+  if (!obj || !campos) return obj;
+
   for (const campo of campos) {
-    decifraCampo(obj, campo.split("."), llave, oaep, operacion);
+    // Dividimos la ruta por puntos para navegar el objeto
+    procesarCampoRecursivo(obj, campo.split("."), llave, oaep, operacion);
   }
   return obj;
 };
 
-const decifraCampo = (
+/**
+ * Navega recursivamente el objeto para aplicar la operación en el nivel final.
+ */
+const procesarCampoRecursivo = (
   obj: any,
   ruta: string[],
   llave: string,
@@ -1405,48 +1411,47 @@ const decifraCampo = (
   const parte = ruta[0];
   const resto = ruta.slice(1);
 
-  // Caso arreglo con [*]
+  // --- MANEJO DE ARREGLOS (Sintaxis campo[]) ---
   if (parte.endsWith("[]")) {
     const key = parte.replace("[]", "");
     const arr = obj[key];
     if (Array.isArray(arr)) {
       for (const item of arr) {
-        decifraCampo(item, resto, llave, oaep, operacion);
+        procesarCampoRecursivo(item, resto, llave, oaep, operacion);
       }
     }
     return;
   }
 
-  // Último nivel → aplicar descifrado
+  // --- NIVEL FINAL: APLICAR OPERACIÓN ---
   if (resto.length === 0) {
-    if (
-      obj.hasOwnProperty(parte) &&
-      obj[parte] !== null &&
-      obj[parte] !== undefined
-    ) {
+    if (obj.hasOwnProperty(parte) && obj[parte] !== null && obj[parte] !== undefined) {
       try {
-        obj[parte] = operacion
-          ? Cifrado.getInstance().validaCadenaRSA(obj[parte], llave, oaep)
-          : oaep
-          ? Cifrado.getInstance().descifrarRSAOAEP(obj[parte], llave).valor
-          : // Cifrado.getInstance().descifraRSAPSK1(obj[parte], llave).valor;
-            decifrarRsa_pkcs1(obj[parte], llave).valor;
+        const instancia = Cifrado.getInstance();
+        const valorActual = obj[parte];
+
+        if (operacion === EOpEncrypt.CIFRADO) {
+          // Lógica de CIFRADO (Usa llave pública del cliente)
+          obj[parte] = instancia.validaCadenaRSA(valorActual, llave, oaep);
+        } else {
+          // Lógica de DESCIFRADO (Usa llave privada del servidor)
+          obj[parte] = oaep
+            ? instancia.descifrarRSAOAEP(valorActual, llave).valor
+            : decifrarRsa_pkcs1(valorActual, llave).valor;
+        }
       } catch (e) {
-        console.log(
-          "🚀 ~ SolicitudesController ~ decifraCampo ~  obj[parte]:",
-          obj[parte]
-        );
-        console.warn(`Error descifrando campo ${parte}:`, e);
+        console.error(`[Error] Operación ${operacion} falló en campo: ${parte}`, e);
       }
     }
     return;
   }
 
-  // Paso intermedio → bajar un nivel
+  // --- PASO INTERMEDIO: SEGUIR NAVEGANDO ---
   if (obj[parte]) {
-    decifraCampo(obj[parte], resto, llave, oaep, operacion);
+    procesarCampoRecursivo(obj[parte], resto, llave, oaep, operacion);
   }
 };
+
 
 /**
  * Validador de cadenas alfanuméricas para folios o referencias con reglas específicas usando express-validator.

@@ -58,12 +58,15 @@
     "cors": "2.8.5",
     "express-async-errors": "3.1.1",
     "express-fileupload": "1.4.3",
+    "express-validator": "7.0.1",
     "fast-safe-stringify": "2.1.1",
     "jsonwebtoken": "9.0.2",
     "logform": "2.6.0",
     "maketype": "2.0.1",
     "mongoose": "6.13.0",
     "mysql2": "3.9.2",
+    "node-cache": "5.1.2",
+    "node-cron": "^4.2.1",
     "node-rsa": "1.1.1",
     "node-telegram-bot-api": "0.65.1",
     "ping-tcp-js": "2.0.4",
@@ -71,7 +74,6 @@
     "telnet-client": "2.2.1",
     "uuid": "9.0.1",
     "winston": "3.11.0",
-    "express-validator": "7.0.1",
     "xml2js": "0.6.2"
   }
 }
